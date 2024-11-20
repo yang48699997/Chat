@@ -75,7 +75,7 @@ msg_css = """
 """
 
 
-class ChatWindow(QWidget):
+class Profile(QWidget):
     def paintEvent(self, a0: QtGui.QPaintEvent) -> None:
         painter = QPainter(self)
         pixmap = QPixmap(profile_path)
@@ -184,7 +184,7 @@ class ChatWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = ChatWindow()
+    window = Profile()
     window.show()
     sys.exit(app.exec_())
 
