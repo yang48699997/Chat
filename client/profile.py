@@ -84,6 +84,8 @@ class Profile(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.user_info = None
+
         self.setWindowTitle("主页")
         self.setGeometry(1400, 150, 600, 1200)
         self.setFixedWidth(600)
@@ -99,10 +101,10 @@ class Profile(QWidget):
         self.left_panel.setContentsMargins(10, 10, 10, 10)
 
         # 用户头像
-        avatar = QLabel(self)
-        avatar.setPixmap(QPixmap(profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-        avatar.setAlignment(Qt.AlignCenter)
-        self.left_panel.addWidget(avatar)
+        self.avatar = QLabel(self)
+        self.avatar.setPixmap(QPixmap(profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.avatar.setAlignment(Qt.AlignCenter)
+        self.left_panel.addWidget(self.avatar)
 
         # 消息按钮
         self.message_button = QPushButton("消息")
@@ -180,6 +182,15 @@ class Profile(QWidget):
         for i in range(3):
             item = QListWidgetItem(f"群组 {i + 1}")
             self.groups_list.addItem(item)
+
+    def set_user_info(self, user_info):
+        """设置用户信息"""
+        self.user_info = user_info
+        self.update_profile_info()
+
+    def update_profile_info(self):
+        """更新个人资料信息"""
+        self.avatar.setPixmap(QPixmap(self.user_info[4]).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
 
 if __name__ == "__main__":
