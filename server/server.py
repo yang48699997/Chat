@@ -31,7 +31,7 @@ def get_message(client_socket) -> [str, str]:
         return "", ""
 
 
-def register(info, conn):
+def register(info, cursor):
     user_info = info.split(';')
     user_name = user_info[1]
     user_password = user_info[2]
@@ -41,20 +41,87 @@ def register(info, conn):
     user_picture = user_info[6]
     try:
         sql = "select * from user_info where email = ?"
-        cursor = conn.excute(sql, user_email).fetchall()
-        if len(cursor) >= 1:
+        result = cursor.execute(sql, user_email).fetchall()
+        if len(result) >= 1:
             return "该邮箱已被注册"
         snowflake = Snowflake(data_center_id=1, machine_id=1)
         user_id = snowflake.next_id()
         user_password = encryption.hash_password(user_password)
         sql = "insert into user_info (id, name, password, email, gender, birthday, picture)\
                                 values (?, ?, ?, ?, ?, ?, ?)"
-        conn.excute(sql, (user_id, user_name, user_password, user_gender, user_birthday, user_picture))
-        return "注册成功"
+        cursor.execute(sql, (user_id, user_name, user_password, user_gender, user_birthday, user_picture))
+        return "1"
     except Exception as register_e:
         print(f"注册时错误 : {register_e}")
     finally:
         return "注册失败"
+
+
+def login(info, cursor):
+    user_info = info.split(';')
+    user_password = user_info[2]
+    user_password = encryption.hash_password(user_password)
+    try:
+        if '@' in user_info[1]:
+            user_email = user_info[1]
+            result = cursor.execute("select * from user_info where email = ?", user_email).fetchall()
+            if len(result) == 0:
+                return "该邮箱不存在"
+            sql = "select id from user_info where email = ? and password = ?"
+            result = cursor.execute(sql, (user_email, user_password)).fetchall()
+            if len(result) == 0:
+                return "密码错误"
+            return "1"
+        else:
+            user_id = user_info[1]
+            result = cursor.execute("select * from user_info where id = ?", user_id).fetchall()
+            if len(result) == 0:
+                return "该ID不存在"
+            sql = "select id from user_info where id = ? and password = ?"
+            result = cursor.execute(sql, (user_id, user_password)).fetchall()
+            if len(result) == 0:
+                return "密码错误"
+            return "1"
+    except Exception as login_e:
+        print(f"登录失败 : {login_e}")
+    finally:
+        return "登录失败"
+
+
+def forget_password(info, cursor):
+    pass
+
+
+def get_userinfo(info, cursor):
+    user_info = info.split(';')
+    user_id = user_info[1]
+    try:
+        sql = "select * from user_info where id = ?"
+        result = cursor.execute(sql, user_id).fetchall()
+        if len(result) == 0:
+            return "用户不存在"
+        result = result[0]
+        return "1" + str((result[0], result[1], result[4], result[5], result[6]))
+    except Exception as get_info_e:
+        print(f"用户信息获取失败 : {get_info_e}")
+    finally:
+        return "用户信息获取失败"
+
+
+def get_friend(info, cursor):
+    user_info = info.split(';')
+    user_id = user_info[1]
+    try:
+        result = cursor.execute('''
+        SELECT u.id FROM user_info u
+        JOIN friend_info f ON u.id = f.friend_id
+        WHERE f.user_id = ?
+        ''', user_id).fetchall()
+        return "1;" + str(friend[0] for friend in result)
+    except Exception as get_friend_e:
+        print(f"好友获取失败 : {get_friend_e}")
+    finally:
+        return "好友获取失败"
 
 
 def handle_client(client_socket):
@@ -65,16 +132,26 @@ def handle_client(client_socket):
         while True:
             [info, type_] = get_message(client_socket)
             if type_ == "0000":
+                register(info, cursor)
+            elif type_ == "0001":
+                login(info, cursor)
+            elif type_ == "0002":
+                # 待补充
+                forget_password(info, cursor)
+            elif type_ == "0003":
+                get_userinfo(info, cursor)
+            elif type_ == "0004":
+                get_friend(info, cursor)
+            elif type_ == "":
+                pass
+            elif type_ == "":
+                pass
+            elif type_ == "":
                 pass
             conn.commit()
-    except Exception as e:
-        print(f"{client_socket} 连接异常: {e}")
+    except Exception as handle_e:
+        print(f"{client_socket} 连接异常: {handle_e}")
         clients.remove(client_socket)
-        # sql = "update login_info set is_online = 0 where ip = ?"
-        # cursor.execute(sql, (addr[0], ))
-        # conn.commit()
-        # cursor.close()
-        # conn.close()
     finally:
         try:
             client_socket.close()
@@ -96,8 +173,60 @@ def main():
         threading.Thread(target=handle_client, args=(client_socket,)).start()
 
 
+def init_db():
+    conn = sqlite3.connect('server.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_info (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        email TEXT NOT NULL,
+        gender TEXT NOT NULL,
+        birthday TEXT NOT NULL,
+        picture TEXT NOT NULL
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS friend_info (
+        user_id TEXT,
+        friend_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, friend_id),
+        FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE,
+        FOREIGN KEY (friend_id) REFERENCES user_info(id) ON DELETE CASCADE
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS group_info (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        owner_id TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (owner_id) REFERENCES user_info(id) ON DELETE CASCADE
+    )
+    ''')
+
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS group_members (
+        group_id TEXT,
+        user_id TEXT,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (group_id, user_id),
+        FOREIGN KEY (group_id) REFERENCES group_info(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE
+    )
+    ''')
+
+    conn.commit()
+
+
 if __name__ == "__main__":
     try:
+        init_db()
         main()
     except Exception as e:
         print(f"服务器启动异常 : {e}")
