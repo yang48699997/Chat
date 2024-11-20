@@ -17,11 +17,15 @@ from PyQt5 import QtWidgets
 from login import Login
 from register import Register
 from warning import WarningWindow
+from profile import Profile
 
 ip = "127.0.0.1"
 port = 12345
 client = socket.socket()
 client.connect((ip, port))
+# 0 : id, 1 :username, 2 : gender, 3 : birthday, 4 : picture
+user_info = None
+profile_picture_path = "../static/profile_picture01.jpg"
 
 
 def login_refresh():
@@ -44,16 +48,20 @@ def login_to_register():
     login.close()
 
 
-def user_login():  # 登录申请
+def user_login():
     userid = login.login_usr.text()
     password = login.login_pwd.text()
-    msg = "A00001" + ";" + str(userid) + ";" + str(password)
+    msg = "0001" + ";" + str(userid) + ";" + str(password)
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
     response = response.split(";")
     print(response)
-    if response[0] == "1":  # 登陆成功
-        print("success")
+    if response[0] == "1":
+        print("登录成功")
+        global user_info
+        user_info = response[1:]
+        login.close()
+        profile.show()
     #     globalmanager.flag_tx = eval(back_info[2])
     #     infor1 = infor()
     #     infor1.group_btn.clicked.connect(infor2ag)  # 通讯录跳转到拉取群聊
@@ -103,9 +111,9 @@ def user_login():  # 登录申请
     #         warn_page.warn_label.setText(back_info[1])
     #         warnWindow.show()
     #
-    # else:
-    #     warn_page.warn_label.setText(back_info[1])
-    #     warnWindow.show()
+    else:
+        warn_page.warn_label.setText(response[0])
+        warn_window.show()
 
 
 def user_register():
@@ -123,7 +131,7 @@ def user_register():
         warn_window.show()
     else:
         msg = "0000" + ";" + username + ";" + password + ";" + email + ";" + gender + ";"\
-              + birthday + ";" + "01" + ";"
+              + birthday + ";" + profile_picture_path + ";"
         print(msg)
         client.sendall(msg.encode())
         response = client.recv(4096).decode()
@@ -158,9 +166,12 @@ if __name__ == "__main__":
     warn_page = WarningWindow()
     warn_page.setup_ui(warn_window)
 
+    profile = Profile()
+
     login.show()
 
     login.login_signBtn.clicked.connect(login_to_register)
+    login.login_loginBtn.clicked.connect(user_login)
 
     register.register_conBtn.clicked.connect(partial(user_register, ))
     register.register_canBtn.clicked.connect(partial(register_cancel, ))
