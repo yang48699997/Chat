@@ -11,24 +11,20 @@ is_file = 0
 
 def get_message(client_socket) -> [str, str]:
     global is_file
-    try:
-        if is_file == 1:
-            infor = client_socket.recv(102400)
-            if not infor:
-                raise ValueError("No data received")
-            infor = base64.b64decode(infor)
-            type_ = "file"
-            is_file = 0
-        else:
-            infor = client_socket.recv(1024)
-            if not infor:
-                raise ValueError("No data received")
-            infor = str(infor, "utf-8")
-            type_ = infor.split(";")[0]
-        return infor, type_
-    except Exception as message_e:
-        print(f"信息接收错误 : {message_e}")
-        return "", ""
+    if is_file == 1:
+        infor = client_socket.recv(102400)
+        if not infor:
+            raise ValueError("No data received")
+        infor = base64.b64decode(infor)
+        type_ = "file"
+        is_file = 0
+    else:
+        infor = client_socket.recv(1024)
+        if not infor:
+            raise ValueError("No data received")
+        infor = str(infor, "utf-8")
+        type_ = infor.split(";")[0]
+    return infor, type_
 
 
 def register(info, cursor):
