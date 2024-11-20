@@ -17,6 +17,7 @@ from PyQt5 import QtWidgets
 from login import Login
 from register import Register
 from warning import WarningWindow
+from tips import Tips
 from profile import Profile
 
 ip = "127.0.0.1"
@@ -61,56 +62,9 @@ def user_login():
         global user_info
         user_info = response[1:]
         login.close()
+        profile.set_user_info(user_info)
         profile.show()
-    #     globalmanager.flag_tx = eval(back_info[2])
-    #     infor1 = infor()
-    #     infor1.group_btn.clicked.connect(infor2ag)  # 通讯录跳转到拉取群聊
-    #     infor1.deli.clicked.connect(partial(delTreeNodeBtn, infor1))
-    #     infor1.tree.doubleClicked.connect(item_click)
-    #     infor1.addi.clicked.connect(partial(delgroup, infor1))
-    #     infor1.game.clicked.connect(lambda: gp1.show())
-    #     # #infor1.game.clicked.connect(lambda: infor1.close())
-    #     infor1.txti.clicked.connect(lambda: bot1.show())
-    #     tempid = userid
-    #     log1.close()
-    #     global temp_constuser
-    #     x = "A00110;" + userid
-    #     new_socket.sendall(x.encode())
-    #     back_str = new_socket.recv(4096).decode()
-    #     back_info = back_str.split(";")
-    #     if back_info[1] == "1":
-    #         print(back_info)
-    #         frequent_Contacts = eval(back_info[2])
-    #         # temp_constuser = frequent_Contacts
-    #         for i in frequent_Contacts:
-    #             item = QTreeWidgetItem(infor1.root1)
-    #             item.setText(0, str(i))  # 工号
-    #             item.setText(1, str(frequent_Contacts[i]))  # 部门-名字
-    #             item.setToolTip(0, '双击用户发起群聊')
-    #             item.setToolTip(1, '双击用户发起群聊')
-    #             infor1.tree.addTopLevelItem(infor1.root1)
-    #     else:
-    #         warn_page.warn_label.setText(back_info[1])
-    #         warnWindow.show()
-    #     x = "A00111;" + userid
-    #     new_socket.sendall(x.encode())
-    #     back_str = new_socket.recv(4096).decode()
-    #     back_info = back_str.split(";")
-    #     print("back_infor", back_info)
-    #     if back_info[1] == "1":
-    #         frequent_group = eval(back_info[2])
-    #         for i in frequent_group:
-    #             item = QTreeWidgetItem(infor1.root2)
-    #             item.setText(0, str(i[0]))  # 群聊ID
-    #             item.setText(1, str(i[1]))  # 群聊名称
-    #             item.setToolTip(0, '双击用户发起群聊')
-    #             item.setToolTip(1, '双击用户发起群聊')
-    #             infor1.tree.addTopLevelItem(infor1.root2)
-    #         infor1.show()
-    #     else:
-    #         warn_page.warn_label.setText(back_info[1])
-    #         warnWindow.show()
-    #
+
     else:
         warn_page.warn_label.setText(response[0])
         warn_window.show()
@@ -137,6 +91,9 @@ def user_register():
         response = client.recv(4096).decode()
         response = response.split(";")
         if response[0] == "1":
+            tip_page.label.setText("注册成功")
+            tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
+            tip_window.show()
             register.close()
             login.show()
         else:
@@ -156,6 +113,10 @@ def warn_cancel():
     warn_window.close()
 
 
+def tip_cancel():
+    tip_window.close()
+
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
@@ -165,6 +126,10 @@ if __name__ == "__main__":
     warn_window = QDialog()
     warn_page = WarningWindow()
     warn_page.setup_ui(warn_window)
+
+    tip_window = QDialog()
+    tip_page = Tips()
+    tip_page.setup_ui(tip_window)
 
     profile = Profile()
 
@@ -177,5 +142,6 @@ if __name__ == "__main__":
     register.register_canBtn.clicked.connect(partial(register_cancel, ))
 
     warn_page.warn_conBtn.clicked.connect(partial(warn_cancel, ))
+    tip_page.conBtn.clicked.connect(partial(tip_cancel, ))
 
     sys.exit(app.exec_())
