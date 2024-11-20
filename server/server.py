@@ -35,21 +35,21 @@ def register(info, cursor):
     user_gender = user_info[4]
     user_birthday = user_info[5]
     user_picture = user_info[6]
+    print(info)
     try:
         sql = "select * from user_info where email = ?"
-        result = cursor.execute(sql, user_email).fetchall()
+        result = cursor.execute(sql, (user_email, )).fetchall()
         if len(result) >= 1:
             return "该邮箱已被注册"
         snowflake = Snowflake(data_center_id=1, machine_id=1)
         user_id = snowflake.next_id()
         user_password = encryption.hash_password(user_password)
-        sql = "insert into user_info (id, name, password, email, gender, birthday, picture)\
+        sql = "insert into user_info (id, username, password, email, gender, birthday, picture)\
                                 values (?, ?, ?, ?, ?, ?, ?)"
-        cursor.execute(sql, (user_id, user_name, user_password, user_gender, user_birthday, user_picture))
+        cursor.execute(sql, (user_id, user_name, user_password, user_email, user_gender, user_birthday, user_picture))
         return "1"
     except Exception as register_e:
         print(f"注册时错误 : {register_e}")
-    finally:
         return "注册失败"
 
 
@@ -125,25 +125,28 @@ def handle_client(client_socket):
         conn = sqlite3.connect('server.db')
         print("成功连接到数据库")
         cursor = conn.cursor()
+        result = ""
         while True:
             [info, type_] = get_message(client_socket)
             if type_ == "0000":
-                register(info, cursor)
+                result = register(info, cursor)
             elif type_ == "0001":
-                login(info, cursor)
+                result = login(info, cursor)
             elif type_ == "0002":
                 # 待补充
-                forget_password(info, cursor)
+                # result = forget_password(info, cursor)
+                pass
             elif type_ == "0003":
-                get_userinfo(info, cursor)
+                result = get_userinfo(info, cursor)
             elif type_ == "0004":
-                get_friend(info, cursor)
+                result = get_friend(info, cursor)
             elif type_ == "":
                 pass
             elif type_ == "":
                 pass
             elif type_ == "":
                 pass
+            client_socket.sendall(str(result).encode(encoding='utf-8'))
             conn.commit()
     except Exception as handle_e:
         print(f"{client_socket} 连接异常: {handle_e}")
