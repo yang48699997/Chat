@@ -43,7 +43,7 @@ def register(info, cursor):
             return "该邮箱已被注册"
         snowflake = Snowflake(data_center_id=1, machine_id=1)
         user_id = snowflake.next_id()
-        user_password = encryption.hash_password(user_password)
+        user_password = encryption.hash_password_fixed(user_password)
         sql = "insert into user_info (id, username, password, email, gender, birthday, picture)\
                                 values (?, ?, ?, ?, ?, ?, ?)"
         cursor.execute(sql, (user_id, user_name, user_password, user_email, user_gender, user_birthday, user_picture))
@@ -56,31 +56,37 @@ def register(info, cursor):
 def login(info, cursor):
     user_info = info.split(';')
     user_password = user_info[2]
-    user_password = encryption.hash_password(user_password)
+    print(user_password)
+    user_password = encryption.hash_password_fixed(user_password)
     try:
         if '@' in user_info[1]:
             user_email = user_info[1]
-            result = cursor.execute("select * from user_info where email = ?", user_email).fetchall()
+            result = cursor.execute("select * from user_info where email = ?", (user_email, )).fetchall()
             if len(result) == 0:
                 return "该邮箱不存在"
-            sql = "select id from user_info where email = ? and password = ?"
+            sql = "select * from user_info where email = ? and password = ?"
             result = cursor.execute(sql, (user_email, user_password)).fetchall()
             if len(result) == 0:
                 return "密码错误"
-            return "1"
+            print(result)
+            result = result[0]
+            print(result)
+            return "1" + ";" + str(result[0]) + ";" + str(result[1]) + ";" + str(result[4]) \
+                + ";" + str(result[5]) + ";" + str(result[6])
         else:
             user_id = user_info[1]
-            result = cursor.execute("select * from user_info where id = ?", user_id).fetchall()
+            result = cursor.execute("select * from user_info where id = ?", (user_id, )).fetchall()
             if len(result) == 0:
                 return "该ID不存在"
-            sql = "select id from user_info where id = ? and password = ?"
+            sql = "select * from user_info where id = ? and password = ?"
             result = cursor.execute(sql, (user_id, user_password)).fetchall()
             if len(result) == 0:
                 return "密码错误"
-            return "1"
+            result = result[0]
+            return "1" + ";" + str(result[0]) + ";" + str(result[1]) + ";" + str(result[4])\
+                   + ";" + str(result[5]) + ";" + str(result[6])
     except Exception as login_e:
         print(f"登录失败 : {login_e}")
-    finally:
         return "登录失败"
 
 
@@ -97,10 +103,10 @@ def get_userinfo(info, cursor):
         if len(result) == 0:
             return "用户不存在"
         result = result[0]
-        return "1" + str((result[0], result[1], result[4], result[5], result[6]))
+        return "1" + ";" + str(result[0]) + ";" + str(result[1]) + ";" + str(result[4])\
+                   + ";" + str(result[5]) + ";" + str(result[6])
     except Exception as get_info_e:
         print(f"用户信息获取失败 : {get_info_e}")
-    finally:
         return "用户信息获取失败"
 
 
@@ -113,10 +119,11 @@ def get_friend(info, cursor):
         JOIN friend_info f ON u.id = f.friend_id
         WHERE f.user_id = ?
         ''', user_id).fetchall()
-        return "1;" + str(friend[0] for friend in result)
+        friend_list = ";".join(str(friend[0]) for friend in result)
+        print(friend_list)
+        return "1;" + friend_list
     except Exception as get_friend_e:
         print(f"好友获取失败 : {get_friend_e}")
-    finally:
         return "好友获取失败"
 
 
@@ -175,6 +182,9 @@ def main():
 def init_db():
     conn = sqlite3.connect('server.db')
     cursor = conn.cursor()
+
+    # 备用
+    # cursor.execute('DROP TABLE IF EXISTS user_info')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_info (
