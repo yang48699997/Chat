@@ -4,3 +4,5 @@ socket
 sqlite3
 threading
 pyqt5
+time
+passlib
