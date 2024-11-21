@@ -79,6 +79,57 @@ msg_css = """
         height: 0px;  /* 去掉滚动条上下按钮 */
     }
 """
+list_css = """
+    QListWidget {
+        background-color: rgba(245, 245, 245, 160); /* 半透明浅灰背景 */
+        border: none;  /* 去掉默认边框 */
+        outline: none; /* 去掉焦点虚线 */
+        padding: 2px;  /* 内边距 */
+    }
+
+    /* 列表项的样式 */
+    QListWidget::item {
+        background-color: rgba(255,255,255,80);  /* 列表项背景色 */
+        border-radius: 10px;  /* 圆角矩形 */
+        margin: 5px;  /* 列表项间距 */
+        padding: 0px;  /* 内容内边距 */
+        color: #333333;  /* 字体颜色 */
+        font-size: 14px;  /* 字体大小 */
+        font-family: "Microsoft YaHei";  /* 字体 */
+    }
+
+    /* 鼠标悬停时的效果 */
+    QListWidget::item:hover {
+        background-color: #e6f7ff;  /* 浅蓝背景 */
+        border: 1px solid #91d5ff;  /* 浅蓝边框 */
+    }
+
+    /* 鼠标点击选中时的效果 */
+    QListWidget::item:selected {
+        background-color: #bae7ff;  /* 浅蓝背景 */
+        border: 1px solid #1890ff;  /* 深蓝边框 */
+        color: #000000;  /* 改变字体颜色 */
+    }
+
+    /* 自定义滚动条样式 */
+    QScrollBar:vertical {
+        width: 8px;
+        background: rgba(0, 0, 0, 0); /* 滚动条背景透明 */
+        margin: 0px 0px 0px 0px;
+        border: none;
+    }
+    QScrollBar::handle:vertical {
+        background: #c1c1c1; /* 滚动条滑块颜色 */
+        border-radius: 4px;
+        min-height: 20px;
+    }
+    QScrollBar::handle:vertical:hover {
+        background: #a6a6a6; /* 鼠标悬停时颜色 */
+    }
+    QScrollBar::sub-line:vertical, QScrollBar::add-line:vertical {
+        height: 0px;  /* 去掉滚动条上下按钮 */
+    }
+"""
 button_css = """
 background-color: #5ca0d1;
 color: white; 
@@ -160,7 +211,7 @@ class Profile(QWidget):
 
         # 好友列表
         self.friends_list = QListWidget()
-        self.friends_list.setStyleSheet(msg_css)
+        self.friends_list.setStyleSheet(list_css)
         self.search_bar_layout = QHBoxLayout()  # 搜索布局
         self.search_input = QLineEdit(self)  # 搜索输入框
         self.search_input.setPlaceholderText("请输入用户ID或邮箱")
@@ -194,6 +245,17 @@ class Profile(QWidget):
         self.groups_widget.setLayout(self.groups_layout)
         self.content_stack.addWidget(self.groups_widget)  # 替换原来的好友列表
 
+        # 通知列表
+        self.notice_list = QListWidget()
+        self.notice_list.setStyleSheet(msg_css)
+        self.content_stack.addWidget(self.notice_list)
+
+        # 通知按钮
+        self.notice_button = QPushButton("群组")
+        self.notice_button.setStyleSheet(button_css)
+        self.notice_button.clicked.connect(self.show_notice_list)
+        self.left_panel.addWidget(self.notice_button)
+
         # 默认显示消息列表
         self.show_message_list()
 
@@ -218,6 +280,9 @@ class Profile(QWidget):
     def show_groups_list(self):
         self.content_stack.setCurrentWidget(self.groups_widget)
 
+    def show_notice_list(self):
+        self.content_stack.setCurrentWidget(self.notice_list)
+
     def populate_sample_data(self):
         # 消息列表
         for i in range(10):
@@ -237,6 +302,25 @@ class Profile(QWidget):
     def click_event(self, event: QMouseEvent):
         if event.button() == Qt.LeftButton:
             self.clicked.emit()  # 触发信号
+
+
+class FriendItem(QWidget):
+    def __init__(self, user_name, avatar_path, parent=None):
+        super().__init__(parent)
+
+        # 布局管理器
+        layout = QHBoxLayout(self)
+
+        # 用户头像
+        avatar_label = QLabel(self)
+        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80))  # 设置头像大小
+        layout.addWidget(avatar_label)
+
+        # 用户名
+        username_label = QLabel(username, self)
+        layout.addWidget(username_label)
+
+        self.setLayout(layout)
 
 
 if __name__ == "__main__":
