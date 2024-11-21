@@ -104,7 +104,7 @@ def get_userinfo(info, cursor):
             return "用户不存在"
         result = result[0]
         return "1" + ";" + str(result[0]) + ";" + str(result[1]) + ";" + str(result[4])\
-                   + ";" + str(result[5]) + ";" + str(result[6])
+                   + ";" + str(result[5]) + ";" + str(result[6]) + ";" + str(result[7])
     except Exception as get_info_e:
         print(f"用户信息获取失败 : {get_info_e}")
         return "用户信息获取失败"
@@ -194,7 +194,8 @@ def init_db():
         email TEXT NOT NULL,
         gender TEXT NOT NULL,
         birthday TEXT NOT NULL,
-        picture TEXT NOT NULL
+        picture TEXT NOT NULL,
+        status INTEGER NOT NULL DEFAULT 0
     )
     ''')
 

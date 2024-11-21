@@ -161,12 +161,38 @@ class Profile(QWidget):
         # 好友列表
         self.friends_list = QListWidget()
         self.friends_list.setStyleSheet(msg_css)
-        self.content_stack.addWidget(self.friends_list)
+        self.search_bar_layout = QHBoxLayout()  # 搜索布局
+        self.search_input = QLineEdit(self)  # 搜索输入框
+        self.search_input.setPlaceholderText("请输入用户ID或邮箱")
+        self.search_input.setStyleSheet("padding: 5px; font-size: 14px; border-radius: 5px;")
+        self.search_bar_layout.addWidget(self.search_input)
+        self.search_button = QPushButton("搜索", self)  # 搜索按钮
+        self.search_button.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.search_bar_layout.addWidget(self.search_button)
+        self.friends_layout = QVBoxLayout()  # 好友列表布局
+        self.friends_layout.addLayout(self.search_bar_layout)  # 添加搜索布局到好友布局
+        self.friends_layout.addWidget(self.friends_list)  # 添加好友列表到好友布局
+        self.friends_widget = QWidget(self)  # 好友列表整体容器
+        self.friends_widget.setLayout(self.friends_layout)
+        self.content_stack.addWidget(self.friends_widget)  # 替换原来的好友列表
 
         # 群组列表
         self.groups_list = QListWidget()
         self.groups_list.setStyleSheet(msg_css)
-        self.content_stack.addWidget(self.groups_list)
+        self.search_bar_layout_2 = QHBoxLayout()  # 搜索布局
+        self.search_input_2 = QLineEdit(self)  # 搜索输入框
+        self.search_input_2.setPlaceholderText("请输入用户ID或邮箱")
+        self.search_input_2.setStyleSheet("padding: 5px; font-size: 14px; border-radius: 5px;")
+        self.search_bar_layout_2.addWidget(self.search_input_2)
+        self.search_button_2 = QPushButton("搜索", self)  # 搜索按钮
+        self.search_button_2.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.search_bar_layout_2.addWidget(self.search_button_2)
+        self.groups_layout = QVBoxLayout()  # 好友列表布局
+        self.groups_layout.addLayout(self.search_bar_layout_2)  # 添加搜索布局到好友布局
+        self.groups_layout.addWidget(self.groups_list)  # 添加好友列表到好友布局
+        self.groups_widget = QWidget(self)  # 好友列表整体容器
+        self.groups_widget.setLayout(self.groups_layout)
+        self.content_stack.addWidget(self.groups_widget)  # 替换原来的好友列表
 
         # 默认显示消息列表
         self.show_message_list()
@@ -187,10 +213,10 @@ class Profile(QWidget):
         self.content_stack.setCurrentWidget(self.message_list)
 
     def show_friends_list(self):
-        self.content_stack.setCurrentWidget(self.friends_list)
+        self.content_stack.setCurrentWidget(self.friends_widget)
 
     def show_groups_list(self):
-        self.content_stack.setCurrentWidget(self.groups_list)
+        self.content_stack.setCurrentWidget(self.groups_widget)
 
     def populate_sample_data(self):
         # 消息列表
