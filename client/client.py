@@ -19,6 +19,7 @@ from register import Register
 from warning import WarningWindow
 from tips import Tips
 from profile import Profile
+from profile import FriendItem
 from edit import Picture
 from edit import ProfileEditor
 
@@ -37,7 +38,8 @@ def client_handle():
     global profile
     profile = Profile(user_info)
     # 绑定编辑个人资料页面
-    profile.clicked.connect(click_user_profile_picture)
+    # profile.clicked.connect(click_user_profile_picture)
+    init_friend_list()
     profile.show()
 
     global profile_editor
@@ -165,6 +167,36 @@ def click_user_edit_picture():
     picture.show()
 
 
+def click_user_search():
+    uid = profile.search_input.text()
+    msg = "0003" + ";" + str(uid)
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+
+    profile.friends_list.clear()
+    profile.search_button.setText("取消")
+    profile.search_button.clicked.disconnect()
+    profile.search_button.clicked.connect(init_friend_list)
+    if response[0] == "1":
+        item = FriendItem(response[2], response[5])
+        list_item = QListWidgetItem()
+        list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+
+        # 添加到QListWidget
+        profile.friends_list.addItem(list_item)
+        profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+
+
+def init_friend_list():
+    profile.search_button.clicked.connect(click_user_search)
+    profile.search_button.clicked.disconnect()
+    profile.search_button.clicked.connect(click_user_search)
+    profile.search_button.setText("搜索")
+    profile.search_input.clear()
+
+
 def get_picture(row, col):
     global user_info
     user_info[4] = picture_root_path + str(row * 3 + col) + suffix
@@ -195,6 +227,7 @@ if __name__ == "__main__":
     login.show()
 
     login.login_signBtn.clicked.connect(login_to_register)
+
     login.login_loginBtn.clicked.connect(user_login)
 
     register.register_conBtn.clicked.connect(partial(user_register, ))
