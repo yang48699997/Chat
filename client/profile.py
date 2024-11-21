@@ -1,8 +1,9 @@
 import sys
 from PyQt5.QtCore import Qt
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtCore import QTimer
 from PyQt5.QtCore import QDateTime
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QMouseEvent
 from PyQt5.QtGui import QColor
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QStackedWidget
@@ -22,6 +23,11 @@ from PyQt5 import QtGui
 
 profile_path = "../static/profile.jpg"
 profile_picture_path = "../static/profile_picture01.jpg"
+uid = None
+username = None
+gender = None
+birthday = None
+user_profile_picture_path = None
 msg_css = """
     QListWidget {
         background-color: rgba(245, 245, 245, 160); /* 半透明浅灰背景 */
@@ -73,20 +79,35 @@ msg_css = """
         height: 0px;  /* 去掉滚动条上下按钮 */
     }
 """
+button_css = """
+background-color: #5ca0d1;
+color: white; 
+padding: 10px;
+"""
+
+
+def init_user_info(user_info):
+    global uid, username, gender, birthday, user_profile_picture_path
+    uid = user_info[0]
+    username = user_info[1]
+    gender = user_info[2]
+    birthday = user_info[3]
+    user_profile_picture_path = user_info[4]
 
 
 class Profile(QWidget):
+    clicked = pyqtSignal()
+
     def paintEvent(self, a0: QtGui.QPaintEvent) -> None:
         painter = QPainter(self)
         pixmap = QPixmap(profile_path)
         painter.drawPixmap(self.rect(), pixmap)
 
-    def __init__(self):
+    def __init__(self, user_info):
         super().__init__()
+        init_user_info(user_info)
 
-        self.user_info = None
-
-        self.setWindowTitle("主页")
+        self.setWindowTitle("欢迎回来 " + str(username) + "!")
         self.setGeometry(1400, 150, 600, 1200)
         self.setFixedWidth(600)
         self.setFixedHeight(1200)
@@ -102,25 +123,27 @@ class Profile(QWidget):
 
         # 用户头像
         self.avatar = QLabel(self)
-        self.avatar.setPixmap(QPixmap(profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.avatar. \
+            setPixmap(QPixmap(user_profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.avatar.setAlignment(Qt.AlignCenter)
         self.left_panel.addWidget(self.avatar)
+        self.avatar.mousePressEvent = self.click_event
 
         # 消息按钮
-        self.message_button = QPushButton("消息")
-        self.message_button.setStyleSheet("background-color: #5ca0d1; color: white; padding: 10px;")
+        self.message_button = QPushButton("主页")
+        self.message_button.setStyleSheet(button_css)
         self.message_button.clicked.connect(self.show_message_list)
         self.left_panel.addWidget(self.message_button)
 
         # 好友按钮
         self.friends_button = QPushButton("好友")
-        self.friends_button.setStyleSheet("background-color: #5ca0d1; color: white; padding: 10px;")
+        self.friends_button.setStyleSheet(button_css)
         self.friends_button.clicked.connect(self.show_friends_list)
         self.left_panel.addWidget(self.friends_button)
 
         # 群组按钮
         self.groups_button = QPushButton("群组")
-        self.groups_button.setStyleSheet("background-color: #5ca0d1; color: white; padding: 10px;")
+        self.groups_button.setStyleSheet(button_css)
         self.groups_button.clicked.connect(self.show_groups_list)
         self.left_panel.addWidget(self.groups_button)
 
@@ -154,20 +177,22 @@ class Profile(QWidget):
         # 填充一些测试数据
         self.populate_sample_data()
 
+    def update_info(self, user_info):
+        init_user_info(user_info)
+        self.setWindowTitle("欢迎回来 " + str(username) + "!")
+        self.avatar. \
+            setPixmap(QPixmap(user_profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+
     def show_message_list(self):
-        """切换到消息列表"""
         self.content_stack.setCurrentWidget(self.message_list)
 
     def show_friends_list(self):
-        """切换到好友列表"""
         self.content_stack.setCurrentWidget(self.friends_list)
 
     def show_groups_list(self):
-        """切换到群组列表"""
         self.content_stack.setCurrentWidget(self.groups_list)
 
     def populate_sample_data(self):
-        """填充一些测试数据"""
         # 消息列表
         for i in range(10):
             item = QListWidgetItem(f"消息 {i + 1}")
@@ -183,19 +208,13 @@ class Profile(QWidget):
             item = QListWidgetItem(f"群组 {i + 1}")
             self.groups_list.addItem(item)
 
-    def set_user_info(self, user_info):
-        """设置用户信息"""
-        self.user_info = user_info
-        self.update_profile_info()
-
-    def update_profile_info(self):
-        """更新个人资料信息"""
-        self.avatar.setPixmap(QPixmap(self.user_info[4]).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+    def click_event(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()  # 触发信号
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = Profile()
-    window.show()
+
     sys.exit(app.exec_())
 
