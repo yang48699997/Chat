@@ -99,7 +99,7 @@ def get_userinfo(info, cursor):
     user_id = user_info[1]
     try:
         sql = "select * from user_info where id = ?"
-        result = cursor.execute(sql, user_id).fetchall()
+        result = cursor.execute(sql, (user_id, )).fetchall()
         if len(result) == 0:
             return "用户不存在"
         result = result[0]
@@ -113,18 +113,90 @@ def get_userinfo(info, cursor):
 def get_friend(info, cursor):
     user_info = info.split(';')
     user_id = user_info[1]
+    user_friends = []
     try:
         result = cursor.execute('''
-        SELECT u.id FROM user_info u
-        JOIN friend_info f ON u.id = f.friend_id
-        WHERE f.user_id = ?
-        ''', user_id).fetchall()
-        friend_list = ";".join(str(friend[0]) for friend in result)
+        SELECT friend_id, status 
+        FROM friend_info
+        WHERE user_id = ?
+        ''', (user_id, )).fetchall()
+        for res in result:
+            if str(res[1]) == "3" and str(res[0]) != user_id:
+                user_friends.append(str(res[0]))
+        result = cursor.execute('''
+                SELECT user_id, status 
+                FROM friend_info
+                WHERE friend_id = ?
+                ''', (user_id, )).fetchall()
+        for res in result:
+            if str(res[1]) == "3" and str(res[0]) != user_id:
+                user_friends.append(str(res[0]))
+        friend_list = ";".join(friend for friend in user_friends)
         print(friend_list)
         return "1;" + friend_list
     except Exception as get_friend_e:
         print(f"好友获取失败 : {get_friend_e}")
         return "好友获取失败"
+
+
+def add_friend(info, cursor):
+    user_id = info[1]
+    friend_id = info[2]
+    try:
+        if user_id < friend_id:
+            result = cursor.execute('''
+                    SELECT status 
+                    FROM friend_info
+                    WHERE user_id = ? and friend_id = ?
+                    ''', (user_id, friend_id)).fetchall()
+            if len(result) == 0:
+                cursor.execute("""
+                                insert into friend_info (user_id, friend_id, status)
+                                values(?, ?, ?)
+                                """, (user_id, friend_id, "1"))
+        else:
+            result = cursor.execute('''
+                    SELECT status 
+                    FROM friend_info
+                    WHERE user_id = ? and friend_id = ?
+                    ''', (user_id, friend_id)).fetchall()
+            if len(result) == 0:
+                cursor.execute("""
+                                insert into friend_info (user_id, friend_id, status)
+                                values(?, ?, ?)
+                                """, (friend_id, user_id, "2"))
+        return "1;添加成功"
+    except Exception as add_friend_e:
+        print(f"添加好友异常 : {add_friend_e}")
+        return "添加好友异常"
+
+
+def handle_add_friend(info, cursor):
+    user_id = info[1]
+    friend_id = info[2]
+    op = info[3]
+    try:
+        if op == "0":
+            cursor.execute('''
+                DELETE FROM friend_info
+                WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)
+            ''', (user_id, friend_id, friend_id, user_id))
+        elif user_id < friend_id:
+            cursor.execute('''
+                            UPDATE friend_info
+                            SET status = ?
+                            WHERE (user_id = ? AND friend_id = ?)
+                            ''', ("3", user_id, friend_id))
+        else:
+            cursor.execute('''
+                            UPDATE friend_info
+                            SET status = ?
+                            WHERE (user_id = ? AND friend_id = ?)
+                            ''', ("3", friend_id, user_id))
+        return "操作成功"
+    except Exception as handle_add_friend_e:
+        print(f"处理好友添加异常 : {handle_add_friend_e}")
+        return "处理好友添加异常"
 
 
 def handle_client(client_socket):
@@ -147,13 +219,14 @@ def handle_client(client_socket):
                 result = get_userinfo(info, cursor)
             elif type_ == "0004":
                 result = get_friend(info, cursor)
-            elif type_ == "":
-                pass
-            elif type_ == "":
-                pass
+            elif type_ == "0005":
+                result = add_friend(info, cursor)
+            elif type_ == "0006":
+                result = handle_add_friend(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
+            print(str(result))
             conn.commit()
     except Exception as handle_e:
         print(f"{client_socket} 连接异常: {handle_e}")
@@ -185,6 +258,9 @@ def init_db():
 
     # 备用
     # cursor.execute('DROP TABLE IF EXISTS user_info')
+    # cursor.execute('DROP TABLE IF EXISTS friend_info')
+    # cursor.execute('DROP TABLE IF EXISTS group_info')
+    # cursor.execute('DROP TABLE IF EXISTS group_members')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_info (
@@ -199,11 +275,19 @@ def init_db():
     )
     ''')
 
+    """
+    status:
+        0 : 双方不是好友
+        1 : user_id 请求添加 friend_id 为好友
+        2 : friend_id 请求添加 user_id 为好友
+        3 : 双方已成为好友
+    """
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS friend_info (
         user_id TEXT,
         friend_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (user_id, friend_id),
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE,
         FOREIGN KEY (friend_id) REFERENCES user_info(id) ON DELETE CASCADE
@@ -220,11 +304,19 @@ def init_db():
     )
     ''')
 
+    """
+    status:
+        0 : user_id 不是 group_id 的成员
+        1 : user_id 申请加入 group_id 
+        2 : group_id 邀请 user_id 加入
+        3 : user_id 是 group_id 的成员
+    """
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS group_members (
         group_id TEXT,
         user_id TEXT,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (group_id, user_id),
         FOREIGN KEY (group_id) REFERENCES group_info(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE
