@@ -19,14 +19,41 @@ from register import Register
 from warning import WarningWindow
 from tips import Tips
 from profile import Profile
+from edit import Picture
+from edit import ProfileEditor
 
 ip = "127.0.0.1"
 port = 12345
 client = socket.socket()
 client.connect((ip, port))
 # 0 : id, 1 :username, 2 : gender, 3 : birthday, 4 : picture
-user_info = None
+user_info = []
 profile_picture_path = "../static/profile_picture01.jpg"
+picture_root_path = "../static/profile_picture0"
+suffix = ".jpg"
+
+
+def client_handle():
+    global profile
+    profile = Profile(user_info)
+    # 绑定编辑个人资料页面
+    profile.clicked.connect(click_user_profile_picture)
+    profile.show()
+
+    global profile_editor
+    profile_editor = ProfileEditor(user_info)
+    profile_editor.clicked.connect(click_user_edit_picture)
+
+    global picture
+    picture.table.cellPressed.connect(get_picture)
+
+
+def update_profile():
+    global profile
+    profile = Profile(user_info)
+    # 绑定编辑个人资料页面
+    profile.clicked.connect(click_user_profile_picture)
+    profile.show()
 
 
 def login_refresh():
@@ -56,14 +83,17 @@ def user_login():
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
     response = response.split(";")
+
     print(response)
+
     if response[0] == "1":
         print("登录成功")
         global user_info
         user_info = response[1:]
+        login_refresh()
         login.close()
-        profile.set_user_info(user_info)
-        profile.show()
+
+        client_handle()
 
     else:
         warn_page.warn_label.setText(response[0])
@@ -83,9 +113,15 @@ def user_register():
         warn_page.warn_label.setText("密码与确认密码不一致！")
         warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
         warn_window.show()
+    elif len(password) < 6 or len(password) > 15:
+        register.password.clear()
+        register.confirm_password.clear()
+        warn_page.warn_label.setText("密码不符合规则")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
+        warn_window.show()
     else:
         msg = "0000" + ";" + username + ";" + password + ";" + email + ";" + gender + ";"\
-              + birthday + ";" + profile_picture_path + ";"
+              + birthday + ";" + profile_picture_path
         print(msg)
         client.sendall(msg.encode())
         response = client.recv(4096).decode()
@@ -117,6 +153,26 @@ def tip_cancel():
     tip_window.close()
 
 
+def click_user_profile_picture():
+    print("click_user_profile_picture")
+    global profile_editor
+    profile_editor.show()
+
+
+def click_user_edit_picture():
+    print("click_user_edit_picture")
+    global picture
+    picture.show()
+
+
+def get_picture(row, col):
+    global user_info
+    user_info[4] = picture_root_path + str(row * 3 + col) + suffix
+    profile.update_info(user_info)
+    profile_editor.update_info(user_info)
+    picture.close()
+
+
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
@@ -131,7 +187,10 @@ if __name__ == "__main__":
     tip_page = Tips()
     tip_page.setup_ui(tip_window)
 
-    profile = Profile()
+    profile_editor = ProfileEditor([""] * 5)
+    picture = Picture()
+
+    profile = Profile([""] * 5)
 
     login.show()
 
