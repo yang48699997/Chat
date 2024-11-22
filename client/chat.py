@@ -2,7 +2,8 @@ import sys
 from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import QTimer, Qt
+from PyQt5.QtGui import QPixmap, QTextBlockFormat, QTextCharFormat, QColor, QTextImageFormat
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QHeaderView
 from PyQt5.QtWidgets import QTableWidget
@@ -10,13 +11,6 @@ from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QLabel
 
 
-n = 6
-m = 12
-return_id = 0
-path = None
-background_path = "../static/chat.jpg"
-emo_path = "../static/emotions/"
-suffix = ".jpg"
 text_css = """
 font: 12pt "幼圆";
 border: none;
@@ -62,24 +56,37 @@ class Chat(QWidget):
 
     def paintEvent(self, a: QtGui.QPaintEvent) -> None:
         painter8 = QPainter(self)
-        pixmap8 = QPixmap(background_path)
+        pixmap8 = QPixmap(self.background_path)
         painter8.drawPixmap(self.rect(), pixmap8)
 
-    def __init__(self, parent=None):
+    def __init__(self, userinfo=None, parent=None):
         super(Chat, self).__init__(parent)
-        group = self
-        group.setObjectName("group")
-        group.setFixedSize(1300, 920)
-        self.id = 72
+        if userinfo is None:
+            userinfo = ["uid", "fid", "user_name", "friend_name"]
+        self.setObjectName("group")
+        self.setFixedSize(1300, 920)
+
+        # 初始化属性
+        self.n = 6
+        self.m = 12
+        self.return_id = 0
+        self.path = None
+        self.background_path = "../static/chat.jpg"
+        self.emo_path = "../static/emotions/"
+        self.suffix = ".jpg"
+        self.dir = dict()
+        self.dir[userinfo[0]] = "我"
+        self.dir[userinfo[1]] = userinfo[3]
+        self.timer = QTimer(self)
 
         # 输入框
-        self.textEdit = QtWidgets.QTextEdit(group)
+        self.textEdit = QtWidgets.QTextEdit(self)
         self.textEdit.setGeometry(QtCore.QRect(10, 700, 950, 180))
         self.textEdit.setStyleSheet(text_css)
         self.textEdit.setObjectName("text_edit")
 
         # 发送按钮
-        self.send = QtWidgets.QPushButton(group)
+        self.send = QtWidgets.QPushButton(self)
         self.send.setGeometry(QtCore.QRect(850, 885, 93, 28))
         self.send.setStyleSheet(button_css)
         self.send.setObjectName("send")
@@ -87,7 +94,7 @@ class Chat(QWidget):
         self.send.setText("发送")
 
         # 退出按钮
-        self.close_button = QtWidgets.QPushButton(group)
+        self.close_button = QtWidgets.QPushButton(self)
         self.close_button.setGeometry(QtCore.QRect(740, 885, 93, 28))
         self.close_button.setStyleSheet(text_css)
         self.close_button.setObjectName('close_button')
@@ -96,88 +103,171 @@ class Chat(QWidget):
         self.close_button.clicked.connect(self.close)
 
         # 竖线
-        self.line = QtWidgets.QFrame(group)
+        self.line = QtWidgets.QFrame(self)
         self.line.setGeometry(QtCore.QRect(610, 0, 750, 900))
         self.line.setFrameShape(QtWidgets.QFrame.VLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
 
         # 横线
-        self.line_2 = QtWidgets.QFrame(group)
+        self.line_2 = QtWidgets.QFrame(self)
         self.line_2.setGeometry(QtCore.QRect(200, 680, 785, 20))
         self.line_2.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_2.setObjectName("line_2")
 
         # 聊天窗口
-        self.textBrowser = QtWidgets.QTextBrowser(group)
+        self.textBrowser = QtWidgets.QTextBrowser(self)
         self.textBrowser.setGeometry(QtCore.QRect(10, 10, 950, 670))
         self.textBrowser.setStyleSheet(chat_css)
         self.textBrowser.setObjectName("content")
 
         # 表情按钮
-        self.emo = QtWidgets.QPushButton(group)
-        self.emo.setGeometry(QtCore.QRect(15, 670, 40, 25))
-        self.emo.setStyleSheet(emo_css)
-        self.emo.setObjectName("emo")
-        self.emo.setText("表情")
+        self.emo_button = QtWidgets.QPushButton(self)
+        self.emo_button.setGeometry(QtCore.QRect(15, 670, 40, 25))
+        self.emo_button.setStyleSheet(emo_css)
+        self.emo_button.setObjectName("emo")
+        self.emo_button.setText("表情")
 
-        self.group_info = QtWidgets.QLabel(group)
+        # 现在初始化 Emotion 时传递 Chat 实例
+        self.emo = self.Emotion(self)
+        self.emo.setVisible(False)
+
+        self.emo_button.clicked.connect(self.toggle_emo)
+
+        self.group_info = QtWidgets.QLabel(self)
         self.group_info.setGeometry(QtCore.QRect(1000, 10, 121, 25))
         self.group_info.setStyleSheet(group_info_css)
         self.group_info.setObjectName("group_info")
         self.group_info.setText("成员")
 
-        init_ui(group)
-        QtCore.QMetaObject.connectSlotsByName(group)
+        init_ui(self)
+        QtCore.QMetaObject.connectSlotsByName(self)
 
+    def toggle_emo(self):
+        if self.emo.isVisible():
+            self.emo.setVisible(False)
+        else:
+            self.emo.move(self.emo_button.x() + self.emo_button.width(), self.emo_button.y() - 200)
+            self.emo.raise_()
+            self.emo.setVisible(True)
 
-class Emotion(QWidget):
+    class Emotion(QWidget):
 
-    def __init__(self):
-        super().__init__()
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            # 保存父类实例
+            self.chat_instance = parent
+            self.setFixedSize(540, 182)
+            self.setWindowTitle('表情')
+            self.table = QTableWidget(self)
+            self.table.resize(540, 182)
 
-        self.setFixedSize(540, 182)
-        self.setWindowTitle('表情')
-        self.table = QTableWidget(self)
-        self.table.resize(540, 182)
+            # 使用父类实例的属性
+            self.table.setRowCount(self.chat_instance.n)
+            self.table.setColumnCount(self.chat_instance.m)
+            self.table.setAlternatingRowColors(True)
+            self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            QTableWidget.resizeRowsToContents(self.table)
+            self.table.horizontalHeader().setVisible(False)
+            self.table.verticalHeader().setVisible(False)
 
-        self.table.setRowCount(n)
-        self.table.setColumnCount(m)
-        self.table.setAlternatingRowColors(True)
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        QTableWidget.resizeRowsToContents(self.table)
-        self.table.horizontalHeader().setVisible(False)
-        self.table.verticalHeader().setVisible(False)
+            for i in range(self.chat_instance.n):
+                for j in range(self.chat_instance.m):
+                    label = QLabel(self)
+                    label.setPixmap(QtGui.QPixmap(
+                        self.chat_instance.emo_path + str(i * self.chat_instance.m + j) + self.chat_instance.suffix))
+                    self.table.setCellWidget(i, j, label)
 
-        for i in range(n):
-            for j in range(m):
-                label = QLabel(self)
-                label.setPixmap(QtGui.QPixmap(emo_path + str(i * m + j) + suffix))
-                self.table.setCellWidget(i, j, label)
+            self.table.cellPressed.connect(self.get_pos_content)
 
-        self.table.cellPressed.connect(self.get_pos_content)
+        def get_pos_content(self, row, col):
+            self.chat_instance.return_id = int(row) * self.chat_instance.m + int(col)
+            self.chat_instance.path = self.chat_instance.emo_path + str(
+                self.chat_instance.return_id) + self.chat_instance.suffix
+            self.chat_instance.path = "<img src=" + self.chat_instance.path + ">"
+            self.insert_emoji()
+            self.close()
 
-    def get_pos_content(self, row, col):
-        global return_id
-        global path
-        return_id = int(row) * m + int(col)
+        def insert_emoji(self):
+            current_text = self.chat_instance.textEdit.toPlainText()
+            new_text = current_text + self.chat_instance.path
+            self.chat_instance.textEdit.append(new_text)  # 将表情插入到文本框中
 
-        path = emo_path + str(return_id) + suffix
-        path = "<img src=" + path + ">"
-        print(path)
-        self.close()
+    def fill_message(self, records=None, user_picture=None, friend_picture=None):
+        if records is None:
+            records = []
+
+        p = 5
+        tot = len(records) // p
+        self.textBrowser.clear()
+
+        cursor = self.textBrowser.textCursor()
+
+        for i in range(tot):
+            sender = self.dir[records[p * i]]  # 消息发送者（我/朋友）
+            time = records[p * i + 3]  # 时间
+            content = records[p * i + 2]  # 消息内容
+
+            # 消息块格式
+            block_format = QTextBlockFormat()
+            block_format.setLineHeight(150, QTextBlockFormat.ProportionalHeight)
+
+            # 消息内容格式
+            content_format = QTextCharFormat()
+            content_format.setFontPointSize(12)
+            content_format.setForeground(QColor("#000000"))
+
+            # 时间格式
+            time_format = QTextCharFormat()
+            time_format.setFontPointSize(10)
+            time_format.setForeground(QColor("#999"))
+
+            if sender == "我":
+                block_format.setAlignment(Qt.AlignRight)
+
+                cursor.setBlockFormat(block_format)
+                cursor.setCharFormat(content_format)
+                cursor.insertText(content)
+
+                if user_picture:
+                    # 创建 QTextImageFormat 对象并设置图片
+                    image_format = QTextImageFormat()
+                    image_format.setName(user_picture)  # 设置图片路径
+                    image_format.setWidth(40)  # 设置宽度
+                    image_format.setHeight(40)  # 设置高度
+                    cursor.insertImage(image_format)  # 插入图片
+
+                cursor.insertText("\n")
+                cursor.setCharFormat(time_format)
+                cursor.insertText(time)
+                cursor.insertBlock()
+
+            else:
+                block_format.setAlignment(Qt.AlignLeft)
+
+                if friend_picture:
+                    image_format = QTextImageFormat()
+                    image_format.setName(friend_picture)  # 设置图片路径
+                    image_format.setWidth(40)  # 设置宽度
+                    image_format.setHeight(40)  # 设置高度
+                    cursor.insertImage(image_format)  # 插入图片
+
+                cursor.setBlockFormat(block_format)
+                cursor.setCharFormat(content_format)
+                cursor.insertText(content)
+                cursor.insertText("\n")
+                cursor.setCharFormat(time_format)
+                cursor.insertText(time)
+                cursor.insertBlock()
+
+        self.textBrowser.setTextCursor(cursor)
 
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
     chat = Chat()
-    emotion = Emotion()
-
     chat.show()
-
-    chat.emo.clicked.connect(lambda: emotion.show())
-    emotion.table.cellPressed.connect(lambda: chat.textEdit.append(path))
 
     sys.exit(app.exec_())
