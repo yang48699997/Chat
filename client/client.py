@@ -213,7 +213,7 @@ def init_friend_list():
     profile.search_input.clear()
     profile.friends_list.clear()
 
-    msg = "0004" + ";" + user_info[1] + ";" + "3"
+    msg = "0004" + ";" + user_info[0] + ";" + "3"
     print(msg)
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
@@ -232,12 +232,12 @@ def init_friend_list():
                 list_item = QListWidgetItem()
                 list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
 
-                # 添加到QListWidget
                 profile.friends_list.addItem(list_item)
                 profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
 
 
 def init_notice_list():
+    profile.notice_list.clear()
     msg = "0004" + ";" + user_info[0] + ";" + "2"
     print(msg)
     client.sendall(msg.encode())
@@ -270,9 +270,10 @@ def init_notice_list():
 
             item = NoticeItem(friend_name, friend_picture, "请求添加好友")
             list_item = QListWidgetItem()
-            list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+            list_item.setSizeHint(item.sizeHint())
 
-            # 添加到QListWidget
+            item.action_widget.clicked.connect(lambda: handel_add_friend(user_info[0], friend_uid, "1"))
+            item.action_widget2.clicked.connect(lambda: handel_add_friend(user_info[0], friend_uid, "0"))
             profile.notice_list.addItem(list_item)
             profile.notice_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
 
@@ -300,6 +301,28 @@ def get_picture(row, col):
     profile.update_info(user_info)
     profile_editor.update_info(user_info)
     picture.close()
+
+
+def handel_add_friend(user_id, friend_id, op="0"):
+    msg = "0006" + ";" + user_id + ";" + friend_id + ";" + op
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+    if response[0] == "1":
+        tip_page.label.setText("添加成功")
+        tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        tip_window.show()
+    else:
+        warn_page.warn_label.setText("添加失败")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        warn_window.show()
+    profile_refresh()
+
+
+def profile_refresh():
+    init_notice_list()
+    init_friend_list()
 
 
 if __name__ == "__main__":
