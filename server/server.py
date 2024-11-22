@@ -250,6 +250,25 @@ def check_friends_status(info, cursor):
         return "服务器异常"
 
 
+def update_user_info(info, cursor):
+    user_info = info.split(";")
+    uid = user_info[1]
+    username = user_info[2]
+    gender = user_info[3]
+    birthday = user_info[4]
+    picture = user_info[5]
+    try:
+        cursor.execute("""
+        update user_info
+        set username = ?, gender = ?, birthday = ?, picture = ?
+        where id = ?
+        """, (username, gender, birthday, picture, uid))
+        return "1;修改成功"
+    except Exception as update_user_info_e:
+        print(f"信息修改错误 : {update_user_info_e}")
+        return "信息修改错误"
+
+
 def handle_client(client_socket):
     try:
         conn = sqlite3.connect('server.db')
@@ -278,6 +297,8 @@ def handle_client(client_socket):
                 pass
             elif type_ == "0008":
                 result = check_friends_status(info, cursor)
+            elif type_ == "0009":
+                result = update_user_info(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
