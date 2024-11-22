@@ -208,6 +208,47 @@ def handle_add_friend(info, cursor):
         return "处理好友添加异常"
 
 
+def get_chat_record(info, cursor):
+    user_info = info.split(";")
+    user_id = user_info[1]
+    friend_id = user_info[2]
+
+    try:
+        result = cursor.execute('''
+                    SELECT sender_id, receiver_id, content, sent_at, is_read
+                    FROM chat_messages
+                    WHERE 
+                        (sender_id = ? AND receiver_id = ?) OR 
+                        (sender_id = ? AND receiver_id = ?)
+                    ORDER BY sent_at ASC
+                ''', (user_id, friend_id, friend_id, user_id)).fetchall()
+        records = "1;"
+        for record in result:
+            for chat_data in record:
+                records += str(chat_data) + ";"
+        return records
+    except Exception as get_chat_record_e:
+        print(f"获取消息异常 : {get_chat_record_e}")
+        return "获取消息异常"
+
+
+def send_chat_msg(info, cursor):
+    user_info = info.split(";")
+    user_id = user_info[1]
+    friend_id = user_info[2]
+    content = user_info[3]
+    try:
+        cursor.execute('''
+               INSERT INTO chat_messages (sender_id, receiver_id, content, sent_at)
+               VALUES (?, ?, ?, datetime('now'))
+           ''', (user_id, friend_id, content))
+        print(f"消息已发送并记录到数据库 : {content}")
+        return "1;消息发送成功"
+    except Exception as send_chat_msg_e:
+        print("发送消息时出错:", send_chat_msg_e)
+        return "消息发送失败"
+
+
 def check_friends_status(info, cursor):
     user_info = info.split(";")
     user_id = user_info[1]
@@ -299,6 +340,10 @@ def handle_client(client_socket):
                 result = check_friends_status(info, cursor)
             elif type_ == "0009":
                 result = update_user_info(info, cursor)
+            elif type_ == "0010":
+                result = get_chat_record(info, cursor)
+            elif type_ == "0011":
+                result = send_chat_msg(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
@@ -397,6 +442,19 @@ def init_db():
         FOREIGN KEY (group_id) REFERENCES group_info(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE
     )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id TEXT NOT NULL,
+            receiver_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            is_read INTEGER DEFAULT 0,
+            FOREIGN KEY (sender_id) REFERENCES user_info(id) ON DELETE CASCADE,
+            FOREIGN KEY (receiver_id) REFERENCES user_info(id) ON DELETE CASCADE
+        )
     ''')
 
     result = cursor.execute('''
