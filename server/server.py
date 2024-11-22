@@ -113,6 +113,9 @@ def get_userinfo(info, cursor):
 def get_friend(info, cursor):
     user_info = info.split(';')
     user_id = user_info[1]
+    op = user_info[2]
+    print(user_id)
+    print(op)
     user_friends = []
     try:
         result = cursor.execute('''
@@ -121,15 +124,19 @@ def get_friend(info, cursor):
         WHERE user_id = ?
         ''', (user_id, )).fetchall()
         for res in result:
-            if str(res[1]) == "3" and str(res[0]) != user_id:
+            if str(res[1]) == op and str(res[0]) != user_id:
                 user_friends.append(str(res[0]))
+        if op == "1":
+            op = "2"
+        elif op == "2":
+            op = "1"
         result = cursor.execute('''
                 SELECT user_id, status 
                 FROM friend_info
                 WHERE friend_id = ?
                 ''', (user_id, )).fetchall()
         for res in result:
-            if str(res[1]) == "3" and str(res[0]) != user_id:
+            if str(res[1]) == op and str(res[0]) != user_id:
                 user_friends.append(str(res[0]))
         friend_list = ";".join(friend for friend in user_friends)
         print(friend_list)
@@ -140,8 +147,9 @@ def get_friend(info, cursor):
 
 
 def add_friend(info, cursor):
-    user_id = info[1]
-    friend_id = info[2]
+    user_info = info.split(";")
+    user_id = user_info[1]
+    friend_id = user_info[2]
     try:
         if user_id < friend_id:
             result = cursor.execute('''
@@ -172,9 +180,10 @@ def add_friend(info, cursor):
 
 
 def handle_add_friend(info, cursor):
-    user_id = info[1]
-    friend_id = info[2]
-    op = info[3]
+    user_info = info.split(";")
+    user_id = user_info[1]
+    friend_id = user_info[2]
+    op = user_info[3]
     try:
         if op == "0":
             cursor.execute('''
@@ -193,10 +202,52 @@ def handle_add_friend(info, cursor):
                             SET status = ?
                             WHERE (user_id = ? AND friend_id = ?)
                             ''', ("3", friend_id, user_id))
-        return "操作成功"
+        return "1;操作成功"
     except Exception as handle_add_friend_e:
         print(f"处理好友添加异常 : {handle_add_friend_e}")
         return "处理好友添加异常"
+
+
+def check_friends_status(info, cursor):
+    user_info = info.split(";")
+    user_id = user_info[1]
+    friend_id = user_info[2]
+    print(user_id)
+    print(friend_id)
+    try:
+        if user_id < friend_id:
+            result = cursor.execute('''
+                            select status
+                            from friend_info
+                            WHERE user_id = ? AND friend_id = ?
+                            ''', (user_id, friend_id)).fetchall()
+            print(result)
+            if len(result) == 0:
+                return "1;0"
+            elif str(result[0][0]) == "1":
+                return "1;2"
+            elif str(result[0][0]) == "2":
+                return "1;0"
+            else:
+                return "1;1"
+        else:
+            result = cursor.execute('''
+                            select status
+                            from friend_info
+                            WHERE user_id = ? AND friend_id = ?
+                            ''', (friend_id, user_id)).fetchall()
+            print(result)
+            if len(result) == 0:
+                return "1;0"
+            elif str(result[0][0]) == "2":
+                return "1;2"
+            elif str(result[0][0]) == "1":
+                return "1;0"
+            else:
+                return "1;1"
+    except Exception as check_friends_status_e:
+        print(f"查看好友异常 : {check_friends_status_e}")
+        return "服务器异常"
 
 
 def handle_client(client_socket):
@@ -223,6 +274,10 @@ def handle_client(client_socket):
                 result = add_friend(info, cursor)
             elif type_ == "0006":
                 result = handle_add_friend(info, cursor)
+            elif type_ == "0007":
+                pass
+            elif type_ == "0008":
+                result = check_friends_status(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
@@ -322,6 +377,11 @@ def init_db():
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE
     )
     ''')
+
+    result = cursor.execute('''
+    select * from friend_info
+    ''').fetchall()
+    print(result)
 
     conn.commit()
 
