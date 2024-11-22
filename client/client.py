@@ -23,6 +23,7 @@ from profile import FriendItem
 from profile import NoticeItem
 from edit import Picture
 from edit import ProfileEditor
+from chat import Chat
 
 ip = "127.0.0.1"
 port = 12345
@@ -230,11 +231,69 @@ def init_friend_list():
             response = response.split(";")
             if response[0] == "1":
                 item = FriendItem(response[2], response[5])
+                item.user_id = response[1]
                 list_item = QListWidgetItem()
                 list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+                list_item.setData(QtCore.Qt.UserRole, response[1])
+                list_item.setData(QtCore.Qt.UserRole + 1, response[2])
+                list_item.setData(QtCore.Qt.UserRole + 2, response[5])
 
                 profile.friends_list.addItem(list_item)
                 profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+        # 绑定事件
+        profile.friends_list.itemDoubleClicked.connect(item_double_click)
+
+
+def item_double_click(selected_item):
+    user_id = user_info[0]
+    friend_id = selected_item.data(QtCore.Qt.UserRole)
+    user_name = user_info[1]
+    friend_name = selected_item.data(QtCore.Qt.UserRole + 1)
+    user_picture = user_info[4]
+    friend_picture = selected_item.data(QtCore.Qt.UserRole + 2)
+    global chat_window
+    # chat_window.show()
+    chat_window = Chat([user_id, friend_id, user_name, friend_name])
+
+    msg = "0010" + ";" + user_id + ";" + friend_id
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+
+    if response[0] == "1":
+        response = response[1:]
+        chat_window.fill_message(response)
+
+        def send_message(chat):
+            send_msg = "0011" + ";" + user_id + ";" + friend_id + ";" + chat.textEdit.toPlainText()
+            chat.textEdit.clear()
+            print(send_msg)
+            client.sendall(send_msg.encode())
+            send_response = client.recv(4096).decode()
+            send_response.split(";")
+
+        chat_window.send.clicked.connect(lambda: send_message(chat_window))
+
+        chat_window.show()
+
+        chat_window.timer.timeout.connect(lambda: auto_update(chat_window, user_id, friend_id, user_picture, friend_picture))
+        chat_window.timer.start(1000)
+    else:
+        print("聊天窗口打开失败")
+
+
+def auto_update(chat, uid, fid, up, fp):
+    if chat.isVisible():
+        msg = "0010" + ";" + uid + ";" + fid
+        print(msg)
+        client.sendall(msg.encode())
+        response = client.recv(4096).decode()
+        response = response.split(";")
+        response = response[1:]
+        chat_window.fill_message(response, up, fp)
+    else:
+        chat.timer.stop()
 
 
 def init_notice_list():
@@ -364,6 +423,8 @@ if __name__ == "__main__":
     tip_window = QDialog()
     tip_page = Tips()
     tip_page.setup_ui(tip_window)
+
+    chat_window = Chat()
 
     profile_editor = ProfileEditor([""] * 5)
     picture = Picture()
