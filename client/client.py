@@ -20,6 +20,7 @@ from warning import WarningWindow
 from tips import Tips
 from profile import Profile
 from profile import FriendItem
+from profile import NoticeItem
 from edit import Picture
 from edit import ProfileEditor
 
@@ -27,7 +28,7 @@ ip = "127.0.0.1"
 port = 12345
 client = socket.socket()
 client.connect((ip, port))
-# 0 : id, 1 :username, 2 : gender, 3 : birthday, 4 : picture
+# 0 : id, 1 :username, 2 : gender, 3 : birthday, 4 : picture 5 : status
 user_info = []
 profile_picture_path = "../static/profile_picture01.jpg"
 picture_root_path = "../static/profile_picture0"
@@ -38,8 +39,9 @@ def client_handle():
     global profile
     profile = Profile(user_info)
     # 绑定编辑个人资料页面
-    # profile.clicked.connect(click_user_profile_picture)
+    profile.clicked.connect(click_user_profile_picture)
     init_friend_list()
+    init_notice_list()
     profile.show()
 
     global profile_editor
@@ -119,7 +121,7 @@ def user_register():
         register.password.clear()
         register.confirm_password.clear()
         warn_page.warn_label.setText("密码不符合规则")
-        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         warn_window.show()
     else:
         msg = "0000" + ";" + username + ";" + password + ";" + email + ";" + gender + ";"\
@@ -130,14 +132,15 @@ def user_register():
         response = response.split(";")
         if response[0] == "1":
             tip_page.label.setText("注册成功")
-            tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
+            tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
             tip_window.show()
             register.close()
             login.show()
         else:
             warn_page.warn_label.setText(response[0])
-            register_refresh()
+            warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
             warn_window.show()
+            register_refresh()
         print(response)
 
 
@@ -180,13 +183,26 @@ def click_user_search():
     profile.search_button.clicked.disconnect()
     profile.search_button.clicked.connect(init_friend_list)
     if response[0] == "1":
-        item = FriendItem(response[2], response[5])
-        list_item = QListWidgetItem()
-        list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+        friend_name = response[2]
+        friend_picture = response[5]
+        msg = "0008" + ";" + str(user_info[0]) + ";" + str(uid)
+        print(msg)
+        client.sendall(msg.encode())
+        response = client.recv(4096).decode()
+        response = response.split(";")
+        if response[0] == "1":
+            status = response[1]
+            print(status)
+            item = FriendItem(friend_name, friend_picture, status)
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
 
-        # 添加到QListWidget
-        profile.friends_list.addItem(list_item)
-        profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+            if status == "0":
+                item.action_widget.clicked.connect(lambda: add_friend(user_info[0], uid))
+
+            # 添加到QListWidget
+            profile.friends_list.addItem(list_item)
+            profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
 
 
 def init_friend_list():
@@ -195,6 +211,87 @@ def init_friend_list():
     profile.search_button.clicked.connect(click_user_search)
     profile.search_button.setText("搜索")
     profile.search_input.clear()
+    profile.friends_list.clear()
+
+    msg = "0004" + ";" + user_info[1] + ";" + "3"
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+
+    if response[0] == "1":
+        response = response[1:]
+        for friend_uid in response:
+            msg = "0003" + ";" + str(friend_uid)
+            print(msg)
+            client.sendall(msg.encode())
+            response = client.recv(4096).decode()
+            response = response.split(";")
+            if response[0] == "1":
+                item = FriendItem(response[2], response[5])
+                list_item = QListWidgetItem()
+                list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+
+                # 添加到QListWidget
+                profile.friends_list.addItem(list_item)
+                profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+
+
+def init_notice_list():
+    msg = "0004" + ";" + user_info[0] + ";" + "2"
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+
+    if response[0] == "1":
+        response = response[1:]
+        for friend_uid in response:
+            msg = "0003" + ";" + str(friend_uid)
+            print(msg)
+            client.sendall(msg.encode())
+            response = client.recv(4096).decode()
+            response = response.split(";")
+
+            if response[0] != "1":
+                continue
+
+            friend_name = response[2]
+            friend_picture = response[5]
+            msg = "0008" + ";" + user_info[0] + ";" + str(friend_uid)
+            print(msg)
+            client.sendall(msg.encode())
+            response = client.recv(4096).decode()
+            response = response.split(";")
+            print(response)
+
+            if response[0] != "1":
+                continue
+
+            item = NoticeItem(friend_name, friend_picture, "请求添加好友")
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+
+            # 添加到QListWidget
+            profile.notice_list.addItem(list_item)
+            profile.notice_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+
+
+def add_friend(user_id, friend_id):
+    msg = "0005" + ";" + user_id + ";" + friend_id
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+    if response[0] == "1":
+        tip_page.label.setText("添加成功")
+        tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        tip_window.show()
+    else:
+        warn_page.warn_label.setText("添加失败")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        warn_window.show()
+    click_user_search()
 
 
 def get_picture(row, col):

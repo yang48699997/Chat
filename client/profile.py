@@ -251,7 +251,7 @@ class Profile(QWidget):
         self.content_stack.addWidget(self.notice_list)
 
         # 通知按钮
-        self.notice_button = QPushButton("群组")
+        self.notice_button = QPushButton("通知")
         self.notice_button.setStyleSheet(button_css)
         self.notice_button.clicked.connect(self.show_notice_list)
         self.left_panel.addWidget(self.notice_button)
@@ -305,22 +305,83 @@ class Profile(QWidget):
 
 
 class FriendItem(QWidget):
-    def __init__(self, user_name, avatar_path, parent=None):
+    status = "0"
+
+    def __init__(self, user_name, avatar_path, status="4", parent=None):
+        super().__init__(parent)
+        self.status = status
+        self.action_widget = QPushButton("", self)
+        self.action_widget.setVisible(False)
+
+        # 主布局管理器（水平布局）
+        main_layout = QHBoxLayout(self)
+
+        # 用户头像部分
+        avatar_label = QLabel(self)
+        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))  # 设置头像大小
+        avatar_label.setFixedSize(80, 80)  # 确保头像大小固定
+        main_layout.addWidget(avatar_label)
+
+        # 用户信息和操作部分（垂直布局）
+        info_layout = QVBoxLayout()
+        username_label = QLabel(user_name, self)
+        username_label.setStyleSheet("font-size: 14px; font-weight: bold;")  # 用户名样式
+        info_layout.addWidget(username_label)
+
+        # 动态决定显示按钮还是标签
+        if self.status == "0":
+            self.action_widget = QPushButton("添加好友", self)
+            self.action_widget.setFixedSize(100, 30)  # 设置按钮大小
+            info_layout.addWidget(self.action_widget)
+        elif self.status == "1":
+            self.action_widget = QLabel("已添加", self)
+            self.action_widget.setStyleSheet("color: gray; font-size: 12px;")
+            info_layout.addWidget(self.action_widget)
+        elif self.status == "2":
+            self.action_widget = QLabel("待确认", self)
+            self.action_widget.setStyleSheet("color: orange; font-size: 12px;")
+            info_layout.addWidget(self.action_widget)
+
+        info_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # 信息居中对齐
+        main_layout.addLayout(info_layout)
+
+        # 添加主布局
+        self.setLayout(main_layout)
+
+
+class NoticeItem(QWidget):
+
+    def __init__(self, user_name, avatar_path, msg="", parent=None):
         super().__init__(parent)
 
-        # 布局管理器
-        layout = QHBoxLayout(self)
+        # 主布局管理器（水平布局）
+        main_layout = QHBoxLayout(self)
 
-        # 用户头像
+        # 用户头像部分
         avatar_label = QLabel(self)
-        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80))  # 设置头像大小
-        layout.addWidget(avatar_label)
+        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))  # 设置头像大小
+        avatar_label.setFixedSize(80, 80)  # 确保头像大小固定
+        main_layout.addWidget(avatar_label)
 
-        # 用户名
-        username_label = QLabel(username, self)
-        layout.addWidget(username_label)
+        # 用户信息和操作部分（垂直布局）
+        info_layout = QVBoxLayout()
+        username_label = QLabel(user_name + msg, self)
+        username_label.setStyleSheet("font-size: 14px; font-weight: bold;")  # 用户名样式
+        info_layout.addWidget(username_label)
 
-        self.setLayout(layout)
+        self.action_widget = QPushButton("同意", self)
+        self.action_widget.setFixedSize(100, 30)
+        self.action_widget2 = QPushButton("拒绝", self)
+        self.action_widget2.setFixedSize(100, 30)
+
+        info_layout.addWidget(self.action_widget)
+        info_layout.addWidget(self.action_widget2)
+
+        info_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # 信息居中对齐
+        main_layout.addLayout(info_layout)
+
+        # 添加主布局
+        self.setLayout(main_layout)
 
 
 if __name__ == "__main__":
