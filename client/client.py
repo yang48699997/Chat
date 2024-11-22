@@ -47,6 +47,7 @@ def client_handle():
     global profile_editor
     profile_editor = ProfileEditor(user_info)
     profile_editor.clicked.connect(click_user_edit_picture)
+    profile_editor.save_button.clicked.connect(update_user_info)
 
     global picture
     picture.table.cellPressed.connect(get_picture)
@@ -303,6 +304,29 @@ def get_picture(row, col):
     picture.close()
 
 
+def update_user_info():
+    new_username = profile_editor.nickname_input.text()
+    new_gender = profile_editor.gender_input.currentText()
+    new_birthday = profile_editor.birthday_input.text()
+    new_picture = user_info[4]
+
+    msg = "0009" + ";" + user_info[0] + ";" + new_username + ";"\
+        + new_gender + ";" + new_birthday + ";" + new_picture
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+    if response[0] == "1":
+        tip_page.label.setText("修改成功")
+        tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        tip_window.show()
+    else:
+        warn_page.warn_label.setText("修改失败")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        warn_window.show()
+    profile.update_info(user_info)
+
+
 def handel_add_friend(user_id, friend_id, op="0"):
     msg = "0006" + ";" + user_id + ";" + friend_id + ";" + op
     print(msg)
@@ -313,6 +337,8 @@ def handel_add_friend(user_id, friend_id, op="0"):
         tip_page.label.setText("添加成功")
         tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         tip_window.show()
+        global profile_editor
+        profile_editor = ProfileEditor(user_info)
     else:
         warn_page.warn_label.setText("添加失败")
         warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
