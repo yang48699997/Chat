@@ -374,12 +374,13 @@ def create_group(info, cursor):
     info = info.split(";")
     user_id = info[1]
     group_name = info[2]
+    group_picture = info[3]
     try:
         group_id = Snowflake(data_center_id=1, machine_id=1).next_id()
         cursor.execute('''
-                INSERT INTO group_info (id, name, owner_id)
-                VALUES (?, ?, ?)
-            ''', (group_id, group_name, user_id))
+                INSERT INTO group_info (id, name, owner_id, picture)
+                VALUES (?, ?, ?, ?)
+            ''', (group_id, group_name, user_id, group_picture))
         return "1;创建成功"
     except Exception as create_group_e:
         print(f"创建群聊异常 : {create_group_e}")
