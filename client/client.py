@@ -255,29 +255,30 @@ def item_double_click(selected_item):
     # chat_window.show()
     chat_window = Chat([user_id, friend_id, user_name, friend_name])
 
-    msg = "0010" + ";" + user_id + ";" + friend_id
+    msg = "0010" + ";;" + user_id + ";;" + friend_id
     print(msg)
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
-    response = response.split(";")
+    response = response.split(";;")
 
     if response[0] == "1":
         response = response[1:]
         chat_window.fill_message(response)
 
         def send_message(chat):
-            send_msg = "0011" + ";" + user_id + ";" + friend_id + ";" + chat.textEdit.toPlainText()
+            send_msg = "0011" + ";;" + user_id + ";;" + friend_id + ";;" + chat.textEdit.toHtml()
             chat.textEdit.clear()
             print(send_msg)
             client.sendall(send_msg.encode())
             send_response = client.recv(4096).decode()
-            send_response.split(";")
+            send_response.split(";;")
 
         chat_window.send.clicked.connect(lambda: send_message(chat_window))
 
         chat_window.show()
 
-        chat_window.timer.timeout.connect(lambda: auto_update(chat_window, user_id, friend_id, user_picture, friend_picture))
+        chat_window.timer.timeout.\
+            connect(lambda: auto_update(chat_window, user_id, friend_id, user_picture, friend_picture))
         chat_window.timer.start(1000)
     else:
         print("聊天窗口打开失败")
@@ -285,11 +286,11 @@ def item_double_click(selected_item):
 
 def auto_update(chat, uid, fid, up, fp):
     if chat.isVisible():
-        msg = "0010" + ";" + uid + ";" + fid
+        msg = "0010" + ";;" + uid + ";;" + fid
         print(msg)
         client.sendall(msg.encode())
         response = client.recv(4096).decode()
-        response = response.split(";")
+        response = response.split(";;")
         response = response[1:]
         chat_window.fill_message(response, up, fp)
     else:

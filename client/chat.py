@@ -190,8 +190,9 @@ class Chat(QWidget):
             self.close()
 
         def insert_emoji(self):
-            current_text = self.chat_instance.textEdit.toPlainText()
+            current_text = self.chat_instance.textEdit.toHtml()
             new_text = current_text + self.chat_instance.path
+            self.chat_instance.textEdit.clear()
             self.chat_instance.textEdit.append(new_text)  # 将表情插入到文本框中
 
     def fill_message(self, records=None, user_picture=None, friend_picture=None):
@@ -222,20 +223,22 @@ class Chat(QWidget):
             time_format = QTextCharFormat()
             time_format.setFontPointSize(10)
             time_format.setForeground(QColor("#999"))
-
+            cursor.insertText("\n")
             if sender == "我":
                 block_format.setAlignment(Qt.AlignRight)
 
                 cursor.setBlockFormat(block_format)
                 cursor.setCharFormat(content_format)
-                cursor.insertText(content)
+
+                # 使用 insertHtml 来插入消息内容，支持富文本和图片
+                cursor.insertHtml(content)
 
                 if user_picture:
                     # 创建 QTextImageFormat 对象并设置图片
                     image_format = QTextImageFormat()
                     image_format.setName(user_picture)  # 设置图片路径
-                    image_format.setWidth(40)  # 设置宽度
-                    image_format.setHeight(40)  # 设置高度
+                    image_format.setWidth(60)  # 设置宽度
+                    image_format.setHeight(60)  # 设置高度
                     cursor.insertImage(image_format)  # 插入图片
 
                 cursor.insertText("\n")
@@ -249,13 +252,15 @@ class Chat(QWidget):
                 if friend_picture:
                     image_format = QTextImageFormat()
                     image_format.setName(friend_picture)  # 设置图片路径
-                    image_format.setWidth(40)  # 设置宽度
-                    image_format.setHeight(40)  # 设置高度
+                    image_format.setWidth(60)  # 设置宽度
+                    image_format.setHeight(60)  # 设置高度
                     cursor.insertImage(image_format)  # 插入图片
 
                 cursor.setBlockFormat(block_format)
                 cursor.setCharFormat(content_format)
-                cursor.insertText(content)
+
+                # 使用 insertHtml 来插入消息内容，支持富文本和图片
+                cursor.insertHtml(content)
                 cursor.insertText("\n")
                 cursor.setCharFormat(time_format)
                 cursor.insertText(time)
