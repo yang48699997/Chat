@@ -310,6 +310,162 @@ def update_user_info(info, cursor):
         return "信息修改错误"
 
 
+def get_group_info(info, cursor):
+    group_id = info.split(";")[1]
+    try:
+        result = cursor.execute("""
+        select *
+        from group_info
+        where id = ?
+        """, (group_id, )).fectchall()
+        if len(result) == 0:
+            return "该群不存在"
+        return "1;" + str(result[0][0]) + ";" + str(result[0][1]) + ";" + str(result[0][2])
+    except Exception as get_group_info_e:
+        print(f"获取群信息错误 : {get_group_info_e}")
+        return "获取群信息错误"
+
+
+def get_group_members(info, cursor):
+    group_id = info.split(";")[1]
+    try:
+        result = cursor.execute("""
+        select user_id
+        from group_members
+        where group_id = ?
+        """, (group_id, )).fectchall()
+        if len(result) == 0:
+            return "该群不存在"
+        response = "1"
+        for _ in result:
+            response += ";" + str(_[0])
+        return response
+    except Exception as get_group_members_e:
+        print(f"获取群成员失败 : {get_group_members_e}")
+        return "获取群成员失败"
+
+
+def get_group_messages(info, cursor):
+    group_id = info.split(";")[1]
+    try:
+        result = cursor.execute("""
+        select *
+        from group_info
+        where id = ?
+        """, (group_id, )).fectchall()
+        if len(result) == 0:
+            return "该群不存在"
+        response = "1"
+        result = cursor.execute("""
+                select *
+                from group_messages
+                where group_id = ?
+                """, (group_id, )).fectchall()
+        for record in result:
+            response += ";;" + str(record[1]) + ";;" + str(record[3]) + ";;" + str(record[4])
+        return response
+    except Exception as get_group_members_e:
+        print(f"获取群成员失败 : {get_group_members_e}")
+        return "获取群成员失败"
+
+
+def create_group(info, cursor):
+    info = info.split(";")
+    user_id = info[1]
+    group_name = info[2]
+    try:
+        group_id = Snowflake(data_center_id=1, machine_id=1).next_id()
+        cursor.execute('''
+                INSERT INTO group_info (id, name, owner_id)
+                VALUES (?, ?, ?)
+            ''', (group_id, group_name, user_id))
+        return "1;创建成功"
+    except Exception as create_group_e:
+        print(f"创建群聊异常 : {create_group_e}")
+        return "创建群聊异常"
+
+
+def invite_user(info, cursor):
+    info = info.split(";")
+    group_id = info[1]
+    user_id = info[3]
+    try:
+        result = cursor.execute('''
+                select status
+                from group_members
+                where user_id = ? and group_id = ?
+            ''', (user_id, group_id)).fetchall()
+        if len(result) == 0:
+            cursor.execute('''
+                        INSERT INTO group_members (group_id, user_id, status)
+                        VALUES (?, ?, ?)
+                    ''', (group_id, user_id, "2"))
+            return "1;邀请用户加入群聊成功"
+        current_status = str(result[0][0])
+        if current_status == "3":
+            return "该用户已在群聊中"
+        elif current_status == "1":
+            cursor.execute('''
+                UPDATE group_members
+                SET status = ?
+                WHERE group_id = ? AND user_id = ?
+            ''', ("3", group_id, user_id))
+        else:
+            cursor.execute('''
+                    UPDATE group_members
+                    SET status = ?
+                    WHERE group_id = ? AND user_id = ?
+                ''', ("2", group_id, user_id))
+        return "1;邀请成功"
+    except Exception as invite_user_e:
+        print(f"邀请用户加入群聊失败 : {invite_user_e}")
+        return "邀请用户加入群聊失败"
+
+
+def get_group_of_user(info, cursor):
+    info = info.split(";")
+    user_id = info[1]
+    op = info[2]
+    try:
+        result = cursor.execute('''
+                select status
+                from group_members
+                where user_id = ?
+            ''', (user_id, )).fetchall()
+        response = "1"
+        for record in result:
+            if record[0] == op:
+                response += ";" + str(record[0])
+        return response
+    except Exception as get_group_of_user_e:
+        print(f"获取用户相关群聊失败 : {get_group_of_user_e}")
+        return "获取用户相关群聊失败"
+
+
+def handle_group(info, cursor):
+    info = info.split(";")
+    user_id = info[1]
+    group_id = info[2]
+    op = info[3]
+    try:
+        if op == "1":
+            cursor.execute('''
+                            UPDATE group_members
+                            SET status = ?
+                            WHERE group_id = ? AND user_id = ?
+                        ''', ("3", group_id, user_id))
+        else:
+            cursor.execute('''
+                        UPDATE group_members
+                        SET status = ?
+                        WHERE group_id = ? AND user_id = ?
+                    ''', ("0", group_id, user_id))
+        return "1:操作成功"
+    except Exception as handle_group_e:
+        print(f"处理群聊请求异常 : {handle_group_e}")
+        print("处理群聊请求异常")
+
+
 def handle_client(client_socket):
     try:
         conn = sqlite3.connect('server.db')
@@ -344,6 +500,20 @@ def handle_client(client_socket):
                 result = get_chat_record(info, cursor)
             elif type_ == "0011":
                 result = send_chat_msg(info, cursor)
+            elif type_ == "0012":
+                result = get_group_info(info, cursor)
+            elif type_ == "0013":
+                result = get_group_members(info, cursor)
+            elif type_ == "0014":
+                result = get_group_messages(info, cursor)
+            elif type_ == "0015":
+                result = create_group(info, cursor)
+            elif type_ == "0016":
+                result = invite_user(info, cursor)
+            elif type_ == "0017":
+                result = get_group_of_user(info, cursor)
+            elif type_ == "0018":
+                result = handle_group(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
@@ -383,6 +553,7 @@ def init_db():
     # cursor.execute('DROP TABLE IF EXISTS group_info')
     # cursor.execute('DROP TABLE IF EXISTS group_members')
     # cursor.execute('DROP TABLE IF EXISTS chat_messages')
+    # cursor.execute('DROP TABLE IF EXISTS group_messages')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_info (
@@ -458,10 +629,22 @@ def init_db():
         )
     ''')
 
-    result = cursor.execute('''
-    select * from friend_info
-    ''').fetchall()
-    print(result)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS group_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id TEXT NOT NULL,
+            group_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sender_id) REFERENCES user_info(id) ON DELETE CASCADE,
+            FOREIGN KEY (group_id) REFERENCES group_info(id) ON DELETE CASCADE
+        )
+    ''')
+
+    # result = cursor.execute('''
+    # select * from friend_info
+    # ''').fetchall()
+    # print(result)
 
     conn.commit()
 
