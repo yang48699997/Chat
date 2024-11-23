@@ -320,7 +320,8 @@ def get_group_info(info, cursor):
         """, (group_id, )).fectchall()
         if len(result) == 0:
             return "该群不存在"
-        return "1;" + str(result[0][0]) + ";" + str(result[0][1]) + ";" + str(result[0][2])
+        return "1;" + str(result[0][0]) + ";" + str(result[0][1]) + ";" + str(result[0][2]) +\
+            ";" + str(result[0][3])
     except Exception as get_group_info_e:
         print(f"获取群信息错误 : {get_group_info_e}")
         return "获取群信息错误"
@@ -592,6 +593,7 @@ def init_db():
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         owner_id TEXT,
+        picture TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (owner_id) REFERENCES user_info(id) ON DELETE CASCADE
     )
