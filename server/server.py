@@ -209,7 +209,7 @@ def handle_add_friend(info, cursor):
 
 
 def get_chat_record(info, cursor):
-    user_info = info.split(";")
+    user_info = info.split(";;")
     user_id = user_info[1]
     friend_id = user_info[2]
 
@@ -222,10 +222,10 @@ def get_chat_record(info, cursor):
                         (sender_id = ? AND receiver_id = ?)
                     ORDER BY sent_at ASC
                 ''', (user_id, friend_id, friend_id, user_id)).fetchall()
-        records = "1;"
+        records = "1;;"
         for record in result:
             for chat_data in record:
-                records += str(chat_data) + ";"
+                records += str(chat_data) + ";;"
         return records
     except Exception as get_chat_record_e:
         print(f"获取消息异常 : {get_chat_record_e}")
@@ -233,7 +233,7 @@ def get_chat_record(info, cursor):
 
 
 def send_chat_msg(info, cursor):
-    user_info = info.split(";")
+    user_info = info.split(";;")
     user_id = user_info[1]
     friend_id = user_info[2]
     content = user_info[3]
@@ -243,7 +243,7 @@ def send_chat_msg(info, cursor):
                VALUES (?, ?, ?, datetime('now'))
            ''', (user_id, friend_id, content))
         print(f"消息已发送并记录到数据库 : {content}")
-        return "1;消息发送成功"
+        return "1;;消息发送成功"
     except Exception as send_chat_msg_e:
         print("发送消息时出错:", send_chat_msg_e)
         return "消息发送失败"
@@ -382,6 +382,7 @@ def init_db():
     # cursor.execute('DROP TABLE IF EXISTS friend_info')
     # cursor.execute('DROP TABLE IF EXISTS group_info')
     # cursor.execute('DROP TABLE IF EXISTS group_members')
+    # cursor.execute('DROP TABLE IF EXISTS chat_messages')
 
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS user_info (
