@@ -317,7 +317,7 @@ def get_group_info(info, cursor):
         select *
         from group_info
         where id = ?
-        """, (group_id, )).fectchall()
+        """, (group_id, )).fetchall()
         if len(result) == 0:
             return "该群不存在"
         return "1;" + str(result[0][0]) + ";" + str(result[0][1]) + ";" + str(result[0][2]) +\
@@ -462,9 +462,27 @@ def handle_group(info, cursor):
                         SET status = ?
                         WHERE group_id = ? AND user_id = ?
                     ''', ("0", group_id, user_id))
-        return "1:操作成功"
+        return "1;操作成功"
     except Exception as handle_group_e:
         print(f"处理群聊请求异常 : {handle_group_e}")
+        print("处理群聊请求异常")
+
+
+def get_status_of_user_group(info, cursor):
+    info = info.split(";")
+    user_id = info[1]
+    group_id = info[2]
+    try:
+        result = cursor.execute('''
+                select status
+                from group_members
+                where user_id = ? and group_id = ?
+            ''', (user_id, group_id)).fetchall()
+        if len(result) == 0:
+            return "1;0"
+        return "1;" + str(result[0][0])
+    except Exception as get_status_of_user_group_e:
+        print(f"处理群聊请求异常 : {get_status_of_user_group_e}")
         print("处理群聊请求异常")
 
 
@@ -516,6 +534,8 @@ def handle_client(client_socket):
                 result = get_group_of_user(info, cursor)
             elif type_ == "0018":
                 result = handle_group(info, cursor)
+            elif type_ == "0019":
+                pass
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
