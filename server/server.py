@@ -249,6 +249,23 @@ def send_chat_msg(info, cursor):
         return "消息发送失败"
 
 
+def send_group_msg(info, cursor):
+    user_info = info.split(";;")
+    user_id = user_info[1]
+    group_id = user_info[2]
+    content = user_info[3]
+    try:
+        cursor.execute('''
+               INSERT INTO group_messages (sender_id, group_id, content, sent_at)
+               VALUES (?, ?, ?, datetime('now'))
+           ''', (user_id, group_id, content))
+        print(f"消息已发送并记录到数据库 : {content}")
+        return "1;;消息发送成功"
+    except Exception as send_group_msg_e:
+        print("发送消息时出错:", send_group_msg_e)
+        return "消息发送失败"
+
+
 def check_friends_status(info, cursor):
     user_info = info.split(";")
     user_id = user_info[1]
@@ -334,7 +351,7 @@ def get_group_members(info, cursor):
         select user_id
         from group_members
         where group_id = ?
-        """, (group_id, )).fectchall()
+        """, (group_id, )).fetchall()
         if len(result) == 0:
             return "该群不存在"
         response = "1"
@@ -353,7 +370,7 @@ def get_group_messages(info, cursor):
         select *
         from group_info
         where id = ?
-        """, (group_id, )).fectchall()
+        """, (group_id, )).fetchall()
         if len(result) == 0:
             return "该群不存在"
         response = "1"
@@ -361,13 +378,13 @@ def get_group_messages(info, cursor):
                 select *
                 from group_messages
                 where group_id = ?
-                """, (group_id, )).fectchall()
+                """, (group_id, )).fetchall()
         for record in result:
             response += ";;" + str(record[1]) + ";;" + str(record[3]) + ";;" + str(record[4])
         return response
     except Exception as get_group_members_e:
-        print(f"获取群成员失败 : {get_group_members_e}")
-        return "获取群成员失败"
+        print(f"获取群消息失败 : {get_group_members_e}")
+        return "获取群消息失败"
 
 
 def create_group(info, cursor):
@@ -376,12 +393,16 @@ def create_group(info, cursor):
     group_name = info[2]
     group_picture = info[3]
     try:
-        group_id = Snowflake(data_center_id=1, machine_id=1).next_id()
+        group_id = str(Snowflake(data_center_id=1, machine_id=1).next_id())
         cursor.execute('''
                 INSERT INTO group_info (id, name, owner_id, picture)
                 VALUES (?, ?, ?, ?)
             ''', (group_id, group_name, user_id, group_picture))
-        return "1;创建成功"
+        cursor.execute('''
+                INSERT INTO group_members (group_id, user_id, status)
+                VALUES (?, ?, ?)
+            ''', (group_id, user_id, "3"))
+        return "1;" + group_id
     except Exception as create_group_e:
         print(f"创建群聊异常 : {create_group_e}")
         return "创建群聊异常"
@@ -430,14 +451,15 @@ def get_group_of_user(info, cursor):
     op = info[2]
     try:
         result = cursor.execute('''
-                select status
+                select status, group_id
                 from group_members
                 where user_id = ?
             ''', (user_id, )).fetchall()
         response = "1"
         for record in result:
-            if record[0] == op:
-                response += ";" + str(record[0])
+            if str(record[0]) == op:
+                response += ";" + str(record[1])
+        print(f"0017 : {result}")
         return response
     except Exception as get_group_of_user_e:
         print(f"获取用户相关群聊失败 : {get_group_of_user_e}")
@@ -456,12 +478,18 @@ def handle_group(info, cursor):
                             SET status = ?
                             WHERE group_id = ? AND user_id = ?
                         ''', ("3", group_id, user_id))
-        else:
+        elif op == "2" or op == "3":
             cursor.execute('''
                         UPDATE group_members
                         SET status = ?
                         WHERE group_id = ? AND user_id = ?
                     ''', ("0", group_id, user_id))
+        else:
+            cursor.execute('''
+                        UPDATE group_members
+                        SET status = ?
+                        WHERE group_id = ? AND user_id = ?
+                    ''', ("1", group_id, user_id))
         return "1;操作成功"
     except Exception as handle_group_e:
         print(f"处理群聊请求异常 : {handle_group_e}")
@@ -536,6 +564,8 @@ def handle_client(client_socket):
                 result = handle_group(info, cursor)
             elif type_ == "0019":
                 result = get_status_of_user_group(info, cursor)
+            elif type_ == "0020":
+                result = send_group_msg(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
@@ -664,10 +694,15 @@ def init_db():
         )
     ''')
 
-    # result = cursor.execute('''
-    # select * from friend_info
-    # ''').fetchall()
-    # print(result)
+    result = cursor.execute('''
+    select * from group_info
+    ''').fetchall()
+    print(result)
+
+    result = cursor.execute('''
+    select * from group_members
+    ''').fetchall()
+    print(result)
 
     conn.commit()
 
