@@ -535,7 +535,7 @@ def handle_client(client_socket):
             elif type_ == "0018":
                 result = handle_group(info, cursor)
             elif type_ == "0019":
-                pass
+                result = get_status_of_user_group(info, cursor)
             elif type_ == "":
                 pass
             client_socket.sendall(str(result).encode(encoding='utf-8'))
