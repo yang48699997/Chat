@@ -78,6 +78,7 @@ class Chat(QWidget):
         self.dir[userinfo[0]] = "我"
         self.dir[userinfo[1]] = userinfo[3]
         self.timer = QTimer(self)
+        self.msg_len = 0
 
         # 输入框
         self.textEdit = QtWidgets.QTextEdit(self)
@@ -255,6 +256,77 @@ class Chat(QWidget):
                     image_format.setWidth(60)  # 设置宽度
                     image_format.setHeight(60)  # 设置高度
                     cursor.insertImage(image_format)  # 插入图片
+
+                cursor.setBlockFormat(block_format)
+                cursor.setCharFormat(content_format)
+
+                # 使用 insertHtml 来插入消息内容，支持富文本和图片
+                cursor.insertHtml(content)
+                cursor.insertText("\n")
+                cursor.setCharFormat(time_format)
+                cursor.insertText(time)
+                cursor.insertBlock()
+
+        self.textBrowser.setTextCursor(cursor)
+
+    def fill_group_message(self, records=None, user_info=None):
+        if records is None:
+            records = []
+
+        p = 3
+        tot = len(records) // p
+        self.textBrowser.clear()
+
+        cursor = self.textBrowser.textCursor()
+
+        for i in range(tot):
+            sender = records[p * i]  # 消息发送者（我/朋友）
+            time = records[p * i + 2]  # 时间
+            content = records[p * i + 1]  # 消息内容
+
+            # 消息块格式
+            block_format = QTextBlockFormat()
+            block_format.setLineHeight(150, QTextBlockFormat.ProportionalHeight)
+
+            # 消息内容格式
+            content_format = QTextCharFormat()
+            content_format.setFontPointSize(12)
+            content_format.setForeground(QColor("#000000"))
+
+            # 时间格式
+            time_format = QTextCharFormat()
+            time_format.setFontPointSize(10)
+            time_format.setForeground(QColor("#999"))
+            cursor.insertText("\n")
+            if self.dir[sender] == "我":
+                block_format.setAlignment(Qt.AlignRight)
+
+                cursor.setBlockFormat(block_format)
+                cursor.setCharFormat(content_format)
+
+                # 使用 insertHtml 来插入消息内容，支持富文本和图片
+                cursor.insertHtml(content)
+
+                # 创建 QTextImageFormat 对象并设置图片
+                image_format = QTextImageFormat()
+                image_format.setName(user_info[sender])  # 设置图片路径
+                image_format.setWidth(60)  # 设置宽度
+                image_format.setHeight(60)  # 设置高度
+                cursor.insertImage(image_format)  # 插入图片
+
+                cursor.insertText("\n")
+                cursor.setCharFormat(time_format)
+                cursor.insertText(time)
+                cursor.insertBlock()
+
+            else:
+                block_format.setAlignment(Qt.AlignLeft)
+
+                image_format = QTextImageFormat()
+                image_format.setName(user_info[sender])  # 设置图片路径
+                image_format.setWidth(60)  # 设置宽度
+                image_format.setHeight(60)  # 设置高度
+                cursor.insertImage(image_format)  # 插入图片
 
                 cursor.setBlockFormat(block_format)
                 cursor.setCharFormat(content_format)

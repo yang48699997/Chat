@@ -238,6 +238,9 @@ class Profile(QWidget):
         self.search_button_2 = QPushButton("搜索", self)  # 搜索按钮
         self.search_button_2.setStyleSheet("padding: 5px; font-size: 14px;")
         self.search_bar_layout_2.addWidget(self.search_button_2)
+        self.search_button_3 = QPushButton("创建群聊", self)  # 搜索按钮
+        self.search_button_3.setStyleSheet("padding: 5px; font-size: 14px;")
+        self.search_bar_layout_2.addWidget(self.search_button_3)
         self.groups_layout = QVBoxLayout()  # 好友列表布局
         self.groups_layout.addLayout(self.search_bar_layout_2)  # 添加搜索布局到好友布局
         self.groups_layout.addWidget(self.groups_list)  # 添加好友列表到好友布局
@@ -267,7 +270,7 @@ class Profile(QWidget):
 
     def update_info(self, user_info):
         init_user_info(user_info)
-        self.setWindowTitle("欢迎回来 " + str(username) + "!")
+        self.setWindowTitle("欢迎回来 " + str(username) + " !")
         self.avatar. \
             setPixmap(QPixmap(user_profile_picture_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
@@ -376,6 +379,51 @@ class NoticeItem(QWidget):
 
         info_layout.addWidget(self.action_widget)
         info_layout.addWidget(self.action_widget2)
+
+        info_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # 信息居中对齐
+        main_layout.addLayout(info_layout)
+
+        # 添加主布局
+        self.setLayout(main_layout)
+
+
+class GroupItem(QWidget):
+    status = "0"
+
+    def __init__(self, group_name, avatar_path="../static/profile_picture01.jpg", status="4", parent=None):
+        super().__init__(parent)
+        self.status = status
+        self.action_widget = QPushButton("", self)
+        self.action_widget.setVisible(False)
+
+        # 主布局管理器（水平布局）
+        main_layout = QHBoxLayout(self)
+
+        # 用户头像部分
+        avatar_label = QLabel(self)
+        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        avatar_label.setFixedSize(80, 80)  # 确保头像大小固定
+        main_layout.addWidget(avatar_label)
+
+        # 用户信息和操作部分（垂直布局）
+        info_layout = QVBoxLayout()
+        group_name_label = QLabel(group_name, self)
+        group_name_label.setStyleSheet("font-size: 14px; font-weight: bold;")  # 用户名样式
+        info_layout.addWidget(group_name_label)
+
+        # 动态决定显示按钮还是标签
+        if self.status == "0":
+            self.action_widget = QPushButton("申请入群", self)
+            self.action_widget.setFixedSize(100, 30)  # 设置按钮大小
+            info_layout.addWidget(self.action_widget)
+        elif self.status == "3":
+            self.action_widget = QLabel("已加入", self)
+            self.action_widget.setStyleSheet("color: gray; font-size: 12px;")
+            info_layout.addWidget(self.action_widget)
+        elif self.status == "1":
+            self.action_widget = QLabel("等待验证", self)
+            self.action_widget.setStyleSheet("color: orange; font-size: 12px;")
+            info_layout.addWidget(self.action_widget)
 
         info_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # 信息居中对齐
         main_layout.addLayout(info_layout)
