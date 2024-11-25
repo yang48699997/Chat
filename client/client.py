@@ -410,6 +410,7 @@ def group_item_double_click(selected_item):
     group_member = response.split(";")
 
     group_user_info = dict()
+    group_user_name_info = dict()
     for user in group_member:
         msg = "0003" + ";" + user_id
         print(msg)
@@ -417,6 +418,7 @@ def group_item_double_click(selected_item):
         response = client.recv(4096).decode()
         response = response.split(";")
         group_user_info[user] = str(response[5])
+        group_user_name_info[user] = str(response[2])
 
     msg = "0014" + ";" + group_id
     print(msg)
@@ -427,7 +429,7 @@ def group_item_double_click(selected_item):
 
     if response[0] == "1":
         response = response[1:]
-        chat_window.fill_group_message(response, group_user_info)
+        chat_window.fill_group_message(response, group_user_info, group_user_name_info)
         chat_window.msg_len = len(response)
 
         def send_message(chat):
@@ -443,7 +445,7 @@ def group_item_double_click(selected_item):
         chat_window.show()
 
         chat_window.timer.timeout.\
-            connect(lambda: group_auto_update(chat_window, user_id, group_id, group_user_info))
+            connect(lambda: group_auto_update(chat_window, user_id, group_id, group_user_info, group_user_name_info))
         chat_window.timer.start(1000)
     else:
         print("群聊窗口打开失败")
@@ -506,7 +508,7 @@ def auto_update(chat, uid, fid, up, fp):
         chat.timer.stop()
 
 
-def group_auto_update(chat, uid, gid, info):
+def group_auto_update(chat, uid, gid, info, name_info):
     if chat.isVisible():
         msg = "0014" + ";" + gid
         print(msg)
@@ -515,7 +517,7 @@ def group_auto_update(chat, uid, gid, info):
         response = response.split(";;")
         response = response[1:]
         if len(response) != chat.msg_len:
-            chat_window.fill_group_message(response, info)
+            chat_window.fill_group_message(response, info, name_info)
             chat.msg_len = len(response)
     else:
         chat.timer.stop()
@@ -553,12 +555,54 @@ def init_notice_list():
             if response[0] != "1":
                 continue
 
-            item = NoticeItem(friend_name, friend_picture, "请求添加好友")
+            item = NoticeItem(friend_name, friend_picture, " 请求添加好友")
             list_item = QListWidgetItem()
             list_item.setSizeHint(item.sizeHint())
 
             item.action_widget.clicked.connect(lambda: handel_add_friend(user_info[0], friend_uid, "1"))
             item.action_widget2.clicked.connect(lambda: handel_add_friend(user_info[0], friend_uid, "0"))
+            profile.notice_list.addItem(list_item)
+            profile.notice_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+
+    msg = "0017" + ";" + user_info[0] + ";" + "2"
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+
+    if response[0] == "1":
+        response = response[1:]
+        for group_id in response:
+            msg = "0012" + ";" + str(group_id)
+            print(msg)
+            client.sendall(msg.encode())
+            response = client.recv(4096).decode()
+            response = response.split(";")
+
+            if response[0] != "1":
+                continue
+
+            group_name = response[2]
+            owner_id = response[3]
+            group_picture = response[4]
+
+            msg = "0003" + ";" + str(owner_id)
+            print(msg)
+            client.sendall(msg.encode())
+            response = client.recv(4096).decode()
+            response = response.split(";")
+
+            if response[0] != "1":
+                continue
+
+            owner_name = response[2]
+
+            item = NoticeItem(owner_name, group_picture, f" 邀请你加入群聊 {group_name} !")
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item.sizeHint())
+
+            item.action_widget.clicked.connect(lambda: handel_add_group(user_info[0], group_id, "1"))
+            item.action_widget2.clicked.connect(lambda: handel_add_group(user_info[0], group_id, "2"))
             profile.notice_list.addItem(list_item)
             profile.notice_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
 
@@ -647,9 +691,29 @@ def handel_add_friend(user_id, friend_id, op="0"):
     profile_refresh()
 
 
+def handel_add_group(user_id, group_id, op="0"):
+    msg = "0018" + ";" + user_id + ";" + group_id + ";" + op
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+    if response[0] == "1":
+        tip_page.label.setText("添加成功")
+        tip_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        tip_window.show()
+        global profile_editor
+        profile_editor = ProfileEditor(user_info)
+    else:
+        warn_page.warn_label.setText("添加失败")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        warn_window.show()
+    profile_refresh()
+
+
 def profile_refresh():
     init_notice_list()
     init_friend_list()
+    init_group_list()
 
 
 if __name__ == "__main__":
