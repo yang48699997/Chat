@@ -3,7 +3,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from PyQt5.QtCore import QTimer, Qt
-from PyQt5.QtGui import QPixmap, QTextBlockFormat, QTextCharFormat, QColor, QTextImageFormat
+from PyQt5.QtGui import QPixmap, QTextBlockFormat, QTextCharFormat, QColor, QTextImageFormat, QFont
 from PyQt5.QtGui import QPainter
 from PyQt5.QtWidgets import QHeaderView
 from PyQt5.QtWidgets import QTableWidget
@@ -269,7 +269,7 @@ class Chat(QWidget):
 
         self.textBrowser.setTextCursor(cursor)
 
-    def fill_group_message(self, records=None, user_info=None):
+    def fill_group_message(self, records=None, user_info=None, user_name_info=None):
         if records is None:
             records = []
 
@@ -298,7 +298,8 @@ class Chat(QWidget):
             time_format.setFontPointSize(10)
             time_format.setForeground(QColor("#999"))
             cursor.insertText("\n")
-            if self.dir[sender] == "我":
+            print(f"-------- {self.dir} -------------")
+            if self.dir.get(sender) == "我":
                 block_format.setAlignment(Qt.AlignRight)
 
                 cursor.setBlockFormat(block_format)
@@ -327,6 +328,14 @@ class Chat(QWidget):
                 image_format.setWidth(60)  # 设置宽度
                 image_format.setHeight(60)  # 设置高度
                 cursor.insertImage(image_format)  # 插入图片
+
+                # 插入用户名
+                username_format = QTextCharFormat()  # 创建格式对象
+                username_format.setFontWeight(QFont.Bold)  # 设置字体加粗
+                username_format.setForeground(QColor("#0078D4"))  # 设置用户名颜色（蓝色）
+                cursor.setCharFormat(username_format)  # 应用格式
+
+                cursor.insertText(f"{user_name_info[sender]}\n")  # 插入用户名并换行
 
                 cursor.setBlockFormat(block_format)
                 cursor.setCharFormat(content_format)
