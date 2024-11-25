@@ -400,14 +400,28 @@ def group_item_double_click(selected_item):
     group_name = selected_item.data(QtCore.Qt.UserRole + 1)
     user_picture = user_info[4]
     group_picture = selected_item.data(QtCore.Qt.UserRole + 3)
-    global chat_window
-    chat_window = Chat([user_id, group_id, user_name, group_name])
 
     msg = "0013" + ";" + group_id
     print(msg)
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
-    group_member = response.split(";")
+    if response.split(";")[0] != "1":
+        return
+
+    group_member = response.split(";")[1:]
+    group_member_info = []
+    for member_id in group_member:
+        msg = "0003" + ";" + member_id
+        print(msg)
+        client.sendall(msg.encode())
+        response = client.recv(4096).decode()
+        response = response.split(";")
+        if response[0] != "1":
+            return
+        group_member_info.append([response[5], response[1], response[2]])
+
+    global chat_window
+    chat_window = Chat([user_id, group_id, user_name, group_name], group_member_info)
 
     group_user_info = dict()
     group_user_name_info = dict()
@@ -484,6 +498,8 @@ def item_double_click(selected_item):
         chat_window.send.clicked.connect(lambda: send_message(chat_window))
 
         chat_window.show()
+
+        chat_window.fill_message(response, user_picture, friend_picture)
 
         auto_update(chat_window, user_id, friend_id, user_picture, friend_picture)
         chat_window.timer.timeout.\

@@ -59,7 +59,7 @@ class Chat(QWidget):
         pixmap8 = QPixmap(self.background_path)
         painter8.drawPixmap(self.rect(), pixmap8)
 
-    def __init__(self, userinfo=None, parent=None):
+    def __init__(self, userinfo=None, group_members=None, parent=None):
         super(Chat, self).__init__(parent)
         if userinfo is None:
             userinfo = ["uid", "fid", "user_name", "friend_name"]
@@ -116,6 +116,55 @@ class Chat(QWidget):
         self.line_2.setFrameShape(QtWidgets.QFrame.HLine)
         self.line_2.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line_2.setObjectName("line_2")
+
+        # 群成员列表控件
+        self.group_members = group_members if group_members is not None else [["..\\static\\chat.jpg", "1", "yuyang"]]
+        self.member_list_widget = QtWidgets.QListWidget(self)
+        self.member_list_widget.setGeometry(QtCore.QRect(1000, 50, 300, 800))
+        self.member_list_widget.setStyleSheet("""
+            QListWidget {
+                background-color: rgba(255, 255, 255, 0);
+                border: 0px solid #ccc;
+                font-size: 16px;
+            }
+            QListWidget::item {
+
+                border-bottom: 0px solid #ddd;
+            }
+        """)
+        self.member_list_widget.setObjectName("member_list")
+        self.member_list_widget.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
+
+        def load_group_members():
+            self.member_list_widget.clear()
+            for member in self.group_members:
+                image_path, user_id, user_name = member
+
+                item_widget = QtWidgets.QWidget()
+                layout = QtWidgets.QHBoxLayout(item_widget)
+                layout.setContentsMargins(10, 10, 10, 10)
+                layout.setSpacing(20)
+
+                # 用户头像
+                avatar_label = QtWidgets.QLabel()
+                avatar_pixmap = QtGui.QPixmap(image_path).scaled(
+                    40, 40,
+                    QtCore.Qt.KeepAspectRatio,
+                    QtCore.Qt.SmoothTransformation
+                )
+                avatar_label.setPixmap(avatar_pixmap)
+                layout.addWidget(avatar_label)
+
+                username_label = QtWidgets.QLabel(f"{user_name}({user_id})")
+                username_label.setStyleSheet("font-size: 20px; color: #000; font-weight: bold;")
+                layout.addWidget(username_label)
+
+                list_item = QtWidgets.QListWidgetItem(self.member_list_widget)
+                list_item.setSizeHint(item_widget.sizeHint())
+                self.member_list_widget.addItem(list_item)
+                self.member_list_widget.setItemWidget(list_item, item_widget)
+
+        load_group_members()
 
         # 聊天窗口
         self.textBrowser = QtWidgets.QTextBrowser(self)
