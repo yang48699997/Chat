@@ -5,9 +5,11 @@ import time
 # 存储注册用户的字典，用户名作为键，值为用户的地址（IP和端口）
 registered_users = {}
 call_sessions = {}
+client_list = {}
 
 
 def handle_client(client_socket, client_address):
+    print(client_socket)
     try:
         while True:
             # 等待客户端发来消息
@@ -15,11 +17,13 @@ def handle_client(client_socket, client_address):
             if not msg:
                 break
 
+            print(msg)
             # 注册请求
             if msg.startswith("REGISTER"):
                 username = msg.split()[1]
                 if username not in registered_users:
                     registered_users[username] = client_address
+                    client_list[client_address] = client_socket
                     client_socket.send(f"OK {username} registered".encode("utf-8"))
                 else:
                     client_socket.send(f"ERROR {username} already registered".encode("utf-8"))
@@ -30,10 +34,12 @@ def handle_client(client_socket, client_address):
                 callee = msg.split()[2]
                 if callee in registered_users:
                     callee_address = registered_users[callee]
-                    client_socket.send(f"RINGING {callee}".encode("utf-8"))
+                    call_sessions[caller] = callee
+
                     # 通知被叫方响铃
-                    call_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    call_socket.sendto(f"CALL FROM {caller}".encode("utf-8"), (callee_address[0], '5061'))
+                    call_socket = client_list[registered_users[caller]]
+                    call_socket.\
+                        send(f"RINGING {callee_address[0]}".encode("utf-8"))
                 else:
                     client_socket.send(f"ERROR {callee} not registered".encode("utf-8"))
 
@@ -43,10 +49,12 @@ def handle_client(client_socket, client_address):
                 call_response = msg.split()[2]
 
                 if callee in call_sessions:
-                    caller_socket = call_sessions[callee][0]
+                    caller = call_sessions[callee]
+                    caller_address = registered_users[caller]
+                    caller_socket = client_list[registered_users[caller]]
                     if call_response == "ACCEPT":
-                        caller_socket.send("CALL ACCEPTED".encode("utf-8"))
-                        client_socket.send("CALL ACCEPTED".encode("utf-8"))
+                        caller_socket.send(f"CALL ACCEPTED {caller_address[0]}".encode("utf-8"))
+                        client_socket.send(f"CALL ACCEPTED {client_address[0]}".encode("utf-8"))
                         print(f"{callee} accepted the call")
                         # 开始视频通话过程，模拟视频传输（可以改成实际的图像处理代码）
                         start_video_call(caller_socket, client_socket)
