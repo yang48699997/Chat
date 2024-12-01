@@ -235,7 +235,17 @@ def init_message_list():
         message = response[i * 6 + 4]
         send_time = response[i * 6 + 5]
         if flag == "0":
+            def remove_item(friend_id):
+                msg_ = "0022" + ";" + "0" + ";" + user_info[0] + ";" + friend_id
+                print(msg_)
+                client.sendall(msg_.encode())
+                client.recv(4096).decode()
+                init_message_list()
+
             item = MessageItem(name, picture_, message, send_time)
+            iden_ = iden
+            item.delete_action.triggered.connect(lambda: remove_item(iden_))
+
             list_item = QListWidgetItem()
             list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
             list_item.setData(QtCore.Qt.UserRole, iden)
@@ -244,8 +254,19 @@ def init_message_list():
 
             profile.message_list.addItem(list_item)
             profile.message_list.setItemWidget(list_item, item)
+
         else:
-            pass
+            item = MessageItem(name, picture_, message, send_time)
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+
+            list_item.setData(QtCore.Qt.UserRole, iden)
+            list_item.setData(QtCore.Qt.UserRole + 1, name)
+            list_item.setData(QtCore.Qt.UserRole + 3, picture_)
+            list_item.setData(QtCore.Qt.UserRole + 4, 1)
+
+            profile.message_list.addItem(list_item)
+            profile.message_list.setItemWidget(list_item, item)
     profile.message_list.itemDoubleClicked.connect(item_double_click)
 
 
@@ -505,6 +526,10 @@ def group_item_double_click(selected_item):
 
 
 def item_double_click(selected_item):
+    if selected_item.data(QtCore.Qt.UserRole + 1) is not None:
+        group_item_double_click(selected_item)
+        return
+
     user_id = user_info[0]
     friend_id = selected_item.data(QtCore.Qt.UserRole)
     user_name = user_info[1]
@@ -571,7 +596,7 @@ def group_auto_update(chat, uid, gid, info, name_info):
         response = response.split(";;")
         response = response[1:]
         if len(response) != chat.msg_len:
-            chat_window.fill_group_message(response, info, name_info)
+            chat.fill_group_message(response, info, name_info)
             chat.msg_len = len(response)
     else:
         chat.timer.timeout.disconnect()

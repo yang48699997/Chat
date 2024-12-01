@@ -6,7 +6,7 @@ from PyQt5.QtCore import QDateTime
 from PyQt5.QtGui import QIcon, QMouseEvent
 from PyQt5.QtGui import QColor
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QStackedWidget
+from PyQt5.QtWidgets import QApplication, QStackedWidget, QAction, QMenu
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QVBoxLayout
 from PyQt5.QtWidgets import QHBoxLayout
@@ -435,7 +435,14 @@ class GroupItem(QWidget):
 class MessageItem(QWidget):
     def __init__(self, name=None, avatar_path=None, content=None, time=None, parent=None):
         super(MessageItem, self).__init__(parent)
+        self.delete_action = QAction("删除消息", self)
+        self.menu = QMenu(self)
+        self.menu.addAction(self.delete_action)
+
         self.init_ui(avatar_path, name, time, content)
+
+        # 存储内容，方便右键菜单操作
+        self.content = content
 
     def init_ui(self, avatar_path, name, time, content):
         # 主布局
@@ -474,6 +481,12 @@ class MessageItem(QWidget):
         main_layout.addLayout(info_layout)
 
         self.setLayout(main_layout)
+
+    def contextMenuEvent(self, event):
+
+        # 显示菜单
+        self.menu.exec_(event.globalPos())
+
 
 
 if __name__ == "__main__":
