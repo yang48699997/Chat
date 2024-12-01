@@ -105,7 +105,7 @@ class Chat(QWidget):
 
         # 竖线
         self.line = QtWidgets.QFrame(self)
-        self.line.setGeometry(QtCore.QRect(610, 0, 750, 950))
+        self.line.setGeometry(QtCore.QRect(980, 0, 10, 950))
         self.line.setFrameShape(QtWidgets.QFrame.VLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
