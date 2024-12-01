@@ -242,6 +242,11 @@ def send_chat_msg(info, cursor):
                INSERT INTO chat_messages (sender_id, receiver_id, content, sent_at)
                VALUES (?, ?, ?, datetime('now'))
            ''', (user_id, friend_id, content))
+        cursor.execute('''
+                            UPDATE friend_info
+                            SET show = 1
+                            WHERE (user_id = ? AND friend_id = ?) OR (friend_id = ? AND user_id = ?)
+                        ''', (user_id, friend_id, friend_id, user_id))
         print(f"消息已发送并记录到数据库 : {content}")
         return "1;;消息发送成功"
     except Exception as send_chat_msg_e:
@@ -346,12 +351,13 @@ def get_group_info(info, cursor):
 
 def get_group_members(info, cursor):
     group_id = info.split(";")[1]
+    status = info.split(";")[2]
     try:
         result = cursor.execute("""
         select user_id
         from group_members
-        where group_id = ?
-        """, (group_id, )).fetchall()
+        where group_id = ? and status = ?
+        """, (group_id, status)).fetchall()
         if len(result) == 0:
             return "该群不存在"
         response = "1"
@@ -514,6 +520,55 @@ def get_status_of_user_group(info, cursor):
         print("处理群聊请求异常")
 
 
+def get_message_list(info, cursor):
+    info = info.split(";")
+    user_id = info[1]
+    user_friends = []
+    user_groups = []
+
+    response = "1;;"
+    try:
+        result = cursor.execute('''
+            SELECT friend_id, status 
+            FROM friend_info
+            WHERE user_id = ? and show = 1
+            ''', (user_id,)).fetchall()
+        for res in result:
+            if str(res[1]) == "3" and str(res[0]) != user_id:
+                user_friends.append(str(res[0]))
+
+        result = cursor.execute('''
+                    SELECT group_id, status 
+                    FROM group_members
+                    WHERE user_id = ? and show = 1
+                    ''', (user_id,)).fetchall()
+        for res in result:
+            if str(res[0]) == "3":
+                user_groups.append(str(res[0]))
+
+        for fid in user_friends:
+            result = cursor.execute("select * from user_info where id = ?", (fid, )).fetchall()
+            friend_name = str(result[0][1])
+            friend_picture = str(result[0][6])
+            f_message = f"0;;{fid};;{friend_name};;{friend_picture};; ;; ;;"
+            result = cursor.execute('''
+                                SELECT sender_id, receiver_id, content, sent_at, is_read
+                                FROM chat_messages
+                                WHERE 
+                                    (sender_id = ? AND receiver_id = ?) OR 
+                                    (sender_id = ? AND receiver_id = ?)
+                                ORDER BY sent_at ASC
+                            ''', (user_id, fid, fid, user_id)).fetchall()
+            if len(result) > 0:
+                record = result[-1]
+                f_message = f"0;;{fid};;{friend_name};;{friend_picture};;{record[2]};;{record[3]};;"
+            response += f_message
+        return response
+    except Exception as get_message_list_e:
+        print(f"消息列表获取失败 : {get_message_list_e}")
+        return "消息列表获取失败"
+
+
 def handle_client(client_socket):
     try:
         conn = sqlite3.connect('server.db')
@@ -566,8 +621,8 @@ def handle_client(client_socket):
                 result = get_status_of_user_group(info, cursor)
             elif type_ == "0020":
                 result = send_group_msg(info, cursor)
-            elif type_ == "":
-                pass
+            elif type_ == "0021":
+                result = get_message_list(info, cursor)
             client_socket.sendall(str(result).encode(encoding='utf-8'))
             print(str(result))
             conn.commit()
@@ -633,6 +688,7 @@ def init_db():
         friend_id TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status INTEGER NOT NULL DEFAULT 0,
+        show INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (user_id, friend_id),
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE,
         FOREIGN KEY (friend_id) REFERENCES user_info(id) ON DELETE CASCADE
@@ -663,6 +719,7 @@ def init_db():
         user_id TEXT,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         status INTEGER NOT NULL DEFAULT 0,
+        show INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (group_id, user_id),
         FOREIGN KEY (group_id) REFERENCES group_info(id) ON DELETE CASCADE,
         FOREIGN KEY (user_id) REFERENCES user_info(id) ON DELETE CASCADE
