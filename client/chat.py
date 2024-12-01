@@ -64,7 +64,7 @@ class Chat(QWidget):
         if userinfo is None:
             userinfo = ["uid", "fid", "user_name", "friend_name"]
         self.setObjectName("group")
-        self.setFixedSize(1300, 920)
+        self.setFixedSize(1380, 950)
 
         # 初始化属性
         self.n = 6
@@ -88,7 +88,7 @@ class Chat(QWidget):
 
         # 发送按钮
         self.send = QtWidgets.QPushButton(self)
-        self.send.setGeometry(QtCore.QRect(850, 885, 93, 28))
+        self.send.setGeometry(QtCore.QRect(850, 895, 93, 28))
         self.send.setStyleSheet(button_css)
         self.send.setObjectName("send")
         self.send.setToolTip('Enter')
@@ -96,7 +96,7 @@ class Chat(QWidget):
 
         # 退出按钮
         self.close_button = QtWidgets.QPushButton(self)
-        self.close_button.setGeometry(QtCore.QRect(740, 885, 93, 28))
+        self.close_button.setGeometry(QtCore.QRect(740, 895, 93, 28))
         self.close_button.setStyleSheet(text_css)
         self.close_button.setObjectName('close_button')
         self.close_button.setText("退出")
@@ -105,7 +105,7 @@ class Chat(QWidget):
 
         # 竖线
         self.line = QtWidgets.QFrame(self)
-        self.line.setGeometry(QtCore.QRect(610, 0, 750, 900))
+        self.line.setGeometry(QtCore.QRect(610, 0, 750, 950))
         self.line.setFrameShape(QtWidgets.QFrame.VLine)
         self.line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.line.setObjectName("line")
@@ -118,9 +118,9 @@ class Chat(QWidget):
         self.line_2.setObjectName("line_2")
 
         # 群成员列表控件
-        self.group_members = group_members if group_members is not None else [["..\\static\\chat.jpg", "1", "yuyang"]]
+        self.group_members = group_members if group_members is not None else []
         self.member_list_widget = QtWidgets.QListWidget(self)
-        self.member_list_widget.setGeometry(QtCore.QRect(1000, 50, 300, 800))
+        self.member_list_widget.setGeometry(QtCore.QRect(1000, 50, 380, 950))
         self.member_list_widget.setStyleSheet("""
             QListWidget {
                 background-color: rgba(255, 255, 255, 0);
