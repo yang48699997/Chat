@@ -33,7 +33,7 @@ msg_css = """
         background-color: rgba(245, 245, 245, 160); /* 半透明浅灰背景 */
         border: none;  /* 去掉默认边框 */
         outline: none; /* 去掉焦点虚线 */
-        padding: 5px;  /* 内边距 */
+        padding: 1px;  /* 内边距 */
     }
 
     /* 列表项的样式 */
@@ -41,7 +41,7 @@ msg_css = """
         background-color: rgba(255,255,255,80);  /* 列表项背景色 */
         border-radius: 10px;  /* 圆角矩形 */
         margin: 5px;  /* 列表项间距 */
-        padding: 10px;  /* 内容内边距 */
+        padding: 2px;  /* 内容内边距 */
         color: #333333;  /* 字体颜色 */
         font-size: 14px;  /* 字体大小 */
         font-family: "Microsoft YaHei";  /* 字体 */
@@ -429,6 +429,50 @@ class GroupItem(QWidget):
         main_layout.addLayout(info_layout)
 
         # 添加主布局
+        self.setLayout(main_layout)
+
+
+class MessageItem(QWidget):
+    def __init__(self, name=None, avatar_path=None, content=None, time=None, parent=None):
+        super(MessageItem, self).__init__(parent)
+        self.init_ui(avatar_path, name, time, content)
+
+    def init_ui(self, avatar_path, name, time, content):
+        # 主布局
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+
+        avatar_label = QLabel(self)
+        avatar_label.setPixmap(QPixmap(avatar_path).scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        avatar_label.setFixedSize(80, 80)  # 确保头像大小固定
+        main_layout.addWidget(avatar_label)
+
+        # 右侧信息
+        info_layout = QVBoxLayout()
+        name_layout = QHBoxLayout()
+
+        # 名称
+        name_label = QLabel(name, self)
+        name_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        name_layout.addWidget(name_label)
+
+        # 时间
+        time_label = QLabel(time, self)
+        time_label.setStyleSheet("font-size: 12px; color: gray;")
+        time_label.setAlignment(Qt.AlignRight)
+        name_layout.addWidget(time_label)
+
+        info_layout.addLayout(name_layout)
+
+        # 内容
+        content_label = QLabel(content, self)
+        content_label.setStyleSheet("font-size: 12px; color: black;")
+        content_label.setWordWrap(True)
+        info_layout.addWidget(content_label)
+
+        main_layout.addLayout(info_layout)
+
         self.setLayout(main_layout)
 
 

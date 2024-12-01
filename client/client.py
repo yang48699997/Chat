@@ -22,6 +22,7 @@ from profile import Profile
 from profile import FriendItem
 from profile import NoticeItem
 from profile import GroupItem
+from profile import MessageItem
 from edit import Picture
 from edit import ProfileEditor
 from chat import Chat
@@ -46,7 +47,10 @@ def client_handle():
     init_friend_list()
     init_notice_list()
     init_group_list()
+    init_message_list()
     profile.show()
+    profile.notice_button.clicked.connect(lambda: init_notice_list)
+    profile.message_button.clicked.connect(lambda: init_message_list)
 
     global profile_editor
     profile_editor = ProfileEditor(user_info)
@@ -208,6 +212,41 @@ def click_user_search():
             # 添加到QListWidget
             profile.friends_list.addItem(list_item)
             profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
+
+
+def init_message_list():
+    profile.message_list.clear()
+    msg = "0021" + ";" + user_info[0]
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";;")
+
+    if response[0] != "1":
+        return
+
+    response = response[1:]
+    p = 6
+    for i in range((len(response) + 1) // p):
+        flag = response[i * 6]
+        iden = response[i * 6 + 1]
+        name = response[i * 6 + 2]
+        picture_ = response[i * 6 + 3]
+        message = response[i * 6 + 4]
+        send_time = response[i * 6 + 5]
+        if flag == "0":
+            item = MessageItem(name, picture_, message, send_time)
+            list_item = QListWidgetItem()
+            list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
+            list_item.setData(QtCore.Qt.UserRole, iden)
+            list_item.setData(QtCore.Qt.UserRole + 1, name)
+            list_item.setData(QtCore.Qt.UserRole + 2, picture_)
+
+            profile.message_list.addItem(list_item)
+            profile.message_list.setItemWidget(list_item, item)
+        else:
+            pass
+    profile.message_list.itemDoubleClicked.connect(item_double_click)
 
 
 def init_friend_list():
@@ -388,6 +427,7 @@ def create_group():
                 group_window.user_list.item(index).setCheckState(Qt.Unchecked)
 
             group_window.close()
+            init_group_list()
 
     else:
         print("创建群聊失败")
@@ -401,14 +441,14 @@ def group_item_double_click(selected_item):
     user_picture = user_info[4]
     group_picture = selected_item.data(QtCore.Qt.UserRole + 3)
 
-    msg = "0013" + ";" + group_id
-    print(msg)
+    msg = "0013" + ";" + group_id + ";" + "3"
     client.sendall(msg.encode())
     response = client.recv(4096).decode()
     if response.split(";")[0] != "1":
         return
 
     group_member = response.split(";")[1:]
+    print(response)
     group_member_info = []
     for member_id in group_member:
         msg = "0003" + ";" + member_id
@@ -420,7 +460,6 @@ def group_item_double_click(selected_item):
             return
         group_member_info.append([response[5], response[1], response[2]])
 
-    global chat_window
     chat_window = Chat([user_id, group_id, user_name, group_name], group_member_info)
 
     group_user_info = dict()
@@ -472,7 +511,6 @@ def item_double_click(selected_item):
     friend_name = selected_item.data(QtCore.Qt.UserRole + 1)
     user_picture = user_info[4]
     friend_picture = selected_item.data(QtCore.Qt.UserRole + 2)
-    global chat_window
     # chat_window.show()
     chat_window = Chat([user_id, friend_id, user_name, friend_name])
 
@@ -517,17 +555,17 @@ def auto_update(chat, uid, fid, up, fp):
         response = client.recv(4096).decode()
         response = response.split(";;")
         response = response[1:]
-        if len(response) != chat_window.msg_len:
-            chat_window.fill_message(response, up, fp)
-            chat_window.msg_len = len(response)
+        if len(response) != chat.msg_len:
+            chat.fill_message(response, up, fp)
+            chat.msg_len = len(response)
     else:
-        chat.timer.stop()
+        chat.timer.timeout.disconnect()
 
 
 def group_auto_update(chat, uid, gid, info, name_info):
     if chat.isVisible():
         msg = "0014" + ";" + gid
-        print(msg)
+        # print(msg)
         client.sendall(msg.encode())
         response = client.recv(4096).decode()
         response = response.split(";;")
@@ -536,7 +574,7 @@ def group_auto_update(chat, uid, gid, info, name_info):
             chat_window.fill_group_message(response, info, name_info)
             chat.msg_len = len(response)
     else:
-        chat.timer.stop()
+        chat.timer.timeout.disconnect()
 
 
 def init_notice_list():
@@ -746,7 +784,7 @@ if __name__ == "__main__":
     tip_page = Tips()
     tip_page.setup_ui(tip_window)
 
-    chat_window = Chat()
+    # chat_window = Chat()
 
     create_group_window = CreateGroupChatPage({})
 
