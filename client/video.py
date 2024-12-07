@@ -9,33 +9,35 @@ from threading import Thread
 
 import cv2
 import pyaudio
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog
-from PyQt5.QtCore import QTimer
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QDialog, QHBoxLayout
+from PyQt5.QtCore import QTimer, QObject, pyqtSignal
 
 
 class RTPStream:
-    def __init__(self, ip, flag=0, video_port=5003, audio_port=5004):
+    def __init__(self, ip, sip_client=None, flag=0, video_port=5003, audio_port=5004):
         self.RTP_IP = ip
+        self.sip_client = sip_client
         self.flag = flag
         self.RTP_VIDEO_PORT = video_port
         self.RTP_AUDIO_PORT = audio_port
-
         self.RTP_HEADER_SIZE = 12
+
+        # Streaming 状态
+        self.streaming = False
+
+        # 视频线程和音频线程
+        self.video_thread = None
+        self.audio_thread = None
+
+        # 视频和音频套接字
+        self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.audio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
         # 音频参数
         self.AUDIO_FORMAT = pyaudio.paInt16
         self.CHANNELS = 1
         self.RATE = 16000
         self.CHUNK = 10240
-
-        # 创建 UDP 套接字
-        self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.audio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        self.is_start_receive_video_stream = False
-
-        # 添加用于控制线程的标志
-        self.streaming = False
 
     def create_rtp_header(self, sequence_number, timestamp, ssrc=12345):
         version = 2  # RTP 版本号
@@ -72,15 +74,11 @@ class RTPStream:
 
                 sequence_number += 1
                 timestamp += 3000
-
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
-
                 time.sleep(0.03)
+
         finally:
             cap.release()
-            # self.video_socket.close()
-            cv2.destroyAllWindows()
+            print("视频发送线程已结束")
 
     def send_audio_stream(self):
         audio = pyaudio.PyAudio()
@@ -99,30 +97,19 @@ class RTPStream:
 
                 sequence_number += 1
                 timestamp += 160
-        except Exception as e:
-            print(f"发送音频数据错误: {e}")
         finally:
             stream.stop_stream()
             stream.close()
             audio.terminate()
-            self.audio_socket.close()
-
-    def parse_rtp_header(self, data):
-        header = struct.unpack('!BBHII', data[:self.RTP_HEADER_SIZE])
-        version = header[0] >> 6
-        payload_type = header[1] & 0x7F
-        sequence_number = header[2]
-        timestamp = header[3]
-        ssrc = header[4]
-        return version, payload_type, sequence_number, timestamp, ssrc
+            print("音频发送线程已结束")
 
     def receive_video_stream(self):
-        video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        video_socket.bind(('0.0.0.0', self.RTP_VIDEO_PORT))
+        self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.video_socket.bind(('0.0.0.0', self.RTP_VIDEO_PORT))
         print(f"正在监听视频帧数据在端口 {self.RTP_VIDEO_PORT}...")
         try:
             while self.streaming:
-                data, _ = video_socket.recvfrom(65536)
+                data, _ = self.video_socket.recvfrom(65536)
                 if len(data) <= self.RTP_HEADER_SIZE:
                     continue
 
@@ -132,14 +119,16 @@ class RTPStream:
                     cv2.imshow("Video", frame)
 
                 if cv2.waitKey(1) & 0xFF == ord('q'):
+                    self.close()
+                    self.sip_client.stop()
                     break
         finally:
-            video_socket.close()
+            self.video_socket.close()
             cv2.destroyAllWindows()
+            print("视频接收线程已结束")
 
     def receive_audio_stream(self):
-        audio_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        audio_socket.bind(('0.0.0.0', self.RTP_AUDIO_PORT))
+        self.audio_socket.bind(('0.0.0.0', self.RTP_AUDIO_PORT))
 
         audio = pyaudio.PyAudio()
         stream = audio.open(format=self.AUDIO_FORMAT, channels=self.CHANNELS, rate=self.RATE, output=True,
@@ -148,7 +137,7 @@ class RTPStream:
         print(f"正在监听音频数据在端口 {self.RTP_AUDIO_PORT}...")
         try:
             while self.streaming:
-                data, _ = audio_socket.recvfrom(65536)
+                data, _ = self.audio_socket.recvfrom(65536)
                 if len(data) <= self.RTP_HEADER_SIZE:
                     continue
 
@@ -158,39 +147,55 @@ class RTPStream:
             stream.stop_stream()
             stream.close()
             audio.terminate()
-            audio_socket.close()
+            print("音频接收线程已结束")
 
     def start_streaming(self):
-        # 启动视频和音频的发送和接收线程
-        if self.flag == 1:
-            Thread(target=self.send_video_stream).start()
-        else:
-            Thread(target=self.receive_video_stream).start()
+        self.streaming = True
+        if self.flag == 1:  # 发送端
+            self.video_thread = Thread(target=self.send_video_stream, daemon=True)
+        else:  # 接收端
+            self.video_thread = Thread(target=self.receive_video_stream, daemon=True)
 
-        # Thread(target=self.send_audio_stream).start()
+        # 启动视频线程
+        if self.video_thread:
+            self.video_thread.start()
 
-        # Thread(target=self.receive_audio_stream).start()
+    def stop_threads(self):
+        """确保线程正确结束"""
+        self.streaming = False
+        if self.video_thread and self.video_thread.is_alive():
+            self.video_thread.join()
+
+        if self.audio_thread and self.audio_thread.is_alive():
+            self.audio_thread.join()
 
     def close(self):
-        self.streaming = False
+        """释放所有资源"""
         self.video_socket.close()
         self.audio_socket.close()
         cv2.destroyAllWindows()
         print("所有资源已释放")
 
 
-class SIPClient:
+class SIPClient(QObject):
+    show_ringing_signal = pyqtSignal()  # 定义信号
+
     def __init__(self, username, server_ip, server_port):
+        super().__init__()
         self.username = username
         self.server_ip = server_ip
         self.server_port = server_port
-        self.rtp_stream = RTPStream("127.0.0.1")
+        self.rtp_stream = RTPStream("127.0.0.1", self)
+        self.ringing_window = None
 
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect((self.server_ip, self.server_port))
 
         self.message_queue = Queue()
         self.running = True
+
+        # 连接信号到主线程槽
+        self.show_ringing_signal.connect(self.show_ringing_window)
 
     def register(self):
         self.client_socket.send(f"REGISTER {self.username}".encode("utf-8"))
@@ -229,10 +234,11 @@ class SIPClient:
 
                 if msg.startswith("RINGING"):
                     tip = msg.split()[1]
-                    self.rtp_stream = RTPStream(tip)
-                    # self.show_ringing_window()
-                    self.client_socket.send(f"ANSWER {self.username} ACCEPT".encode("utf-8"))
-                    self.rtp_stream.flag = 1
+                    print(tip)
+                    self.rtp_stream = RTPStream(tip, self)
+                    # 通过信号通知主线程显示窗口
+                    self.show_ringing_signal.emit()
+
                 elif msg.startswith("CALL ACCEPTED"):
                     self.rtp_stream.streaming = True
                     self.start_video_call()
@@ -245,6 +251,7 @@ class SIPClient:
 
     def show_ringing_window(self):
         """弹出接听/拒绝窗口"""
+        print("主线程显示来电窗口")
         self.ringing_window = RingingWindow(self)
         self.ringing_window.show()
 
@@ -270,41 +277,61 @@ class SIPClient:
         print("客户端关闭.")
 
 
-class RingingWindow(QDialog):
-    def __init__(self, client):
+class RingingWindow(QWidget):
+    def __init__(self, client_):
         super().__init__()
-        self.client = client
+        self.client_ = client_
+        print(client_)
+        print(client_.username)
+        self.init_ui()
+        self.setup_timer()
+        print("here")
+
+    def init_ui(self):
         self.setWindowTitle("Incoming Call")
-        self.setGeometry(100, 100, 300, 150)
+        self.resize(300, 150)
 
-        self.layout = QVBoxLayout()
+        # 创建控件
         self.label = QLabel("Incoming call. Do you want to accept?", self)
-        self.layout.addWidget(self.label)
-
         self.accept_button = QPushButton("Accept", self)
-        self.accept_button.clicked.connect(self.accept_call)
-        self.layout.addWidget(self.accept_button)
-
         self.reject_button = QPushButton("Reject", self)
+
+        # 布局管理
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.accept_button)
+        button_layout.addWidget(self.reject_button)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(self.label)
+        main_layout.addLayout(button_layout)
+
+        self.setLayout(main_layout)
+
+        # 信号与槽
+        self.accept_button.clicked.connect(self.accept_call)
         self.reject_button.clicked.connect(self.reject_call)
-        self.layout.addWidget(self.reject_button)
+        print("pppppppppppppppp")
 
-        self.setLayout(self.layout)
-
-        # Set a timer for 15 seconds to automatically reject if no action is taken
+    def setup_timer(self):
+        # 设置 15 秒倒计时自动拒绝
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.auto_reject)
-        self.timer.start(15000)  # 15 seconds
+        self.timer.start(15000)  # 15 秒
 
     def accept_call(self):
-        self.client.send_answer(True)
+        self.timer.stop()  # 停止计时器
+        self.client_.send_answer(True)
+        self.close()
 
     def reject_call(self):
-        self.client.send_answer(False)
+        self.timer.stop()  # 停止计时器
+        self.client_.send_answer(False)
+        self.close()
 
     def auto_reject(self):
         print("15秒未接听，自动拒绝来电")
-        self.client.send_answer(False)
+        self.client_.send_answer(False)
+        self.close()
 
 
 if __name__ == "__main__":
