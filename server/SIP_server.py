@@ -21,12 +21,14 @@ def handle_client(client_socket, client_address):
             # 注册请求
             if msg.startswith("REGISTER"):
                 username = msg.split()[1]
+                registered_users[username] = client_address
+                client_list[username] = client_socket
+                client_socket.send(f"OK {username} registered".encode("utf-8"))
                 if username not in registered_users:
-                    registered_users[username] = client_address
-                    client_list[username] = client_socket
-                    client_socket.send(f"OK {username} registered".encode("utf-8"))
+                    pass
                 else:
-                    client_socket.send(f"ERROR {username} already registered".encode("utf-8"))
+                    # client_socket.send(f"ERROR {username} already registered".encode("utf-8"))
+                    pass
 
             # 呼叫请求
             elif msg.startswith("CALL"):
