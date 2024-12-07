@@ -109,7 +109,7 @@ class RTPStream:
         print(f"正在监听视频帧数据在端口 {self.RTP_VIDEO_PORT}...")
         try:
             while self.streaming:
-                data, _ = self.video_socket.recvfrom(65536)
+                data, _ = self.video_socket.recvfrom(65536 * 256)
                 if len(data) <= self.RTP_HEADER_SIZE:
                     continue
 
