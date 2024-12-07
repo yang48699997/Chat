@@ -312,6 +312,11 @@ class FriendItem(QWidget):
 
     def __init__(self, user_name, avatar_path, status="4", parent=None):
         super().__init__(parent)
+
+        self.delete_action = QAction("删除好友", self)
+        self.menu = QMenu(self)
+        self.menu.addAction(self.delete_action)
+
         self.status = status
         self.action_widget = QPushButton("", self)
         self.action_widget.setVisible(False)
@@ -350,6 +355,10 @@ class FriendItem(QWidget):
 
         # 添加主布局
         self.setLayout(main_layout)
+
+    def contextMenuEvent(self, event):
+        # 显示菜单
+        self.menu.exec_(event.globalPos())
 
 
 class NoticeItem(QWidget):
@@ -392,6 +401,13 @@ class GroupItem(QWidget):
 
     def __init__(self, group_name, avatar_path="../static/profile_picture01.jpg", status="4", parent=None):
         super().__init__(parent)
+
+        self.invite_action = QAction("邀请成员", self)
+        self.delete_action = QAction("退出群聊", self)
+        self.menu = QMenu(self)
+        self.menu.addAction(self.delete_action)
+        self.menu.addAction(self.invite_action)
+
         self.status = status
         self.action_widget = QPushButton("", self)
         self.action_widget.setVisible(False)
@@ -431,10 +447,15 @@ class GroupItem(QWidget):
         # 添加主布局
         self.setLayout(main_layout)
 
+    def contextMenuEvent(self, event):
+        # 显示菜单
+        self.menu.exec_(event.globalPos())
+
 
 class MessageItem(QWidget):
     def __init__(self, name=None, avatar_path=None, content=None, time=None, parent=None):
         super(MessageItem, self).__init__(parent)
+
         self.delete_action = QAction("删除消息", self)
         self.menu = QMenu(self)
         self.menu.addAction(self.delete_action)
@@ -483,10 +504,8 @@ class MessageItem(QWidget):
         self.setLayout(main_layout)
 
     def contextMenuEvent(self, event):
-
         # 显示菜单
         self.menu.exec_(event.globalPos())
-
 
 
 if __name__ == "__main__":

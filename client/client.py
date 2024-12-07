@@ -27,6 +27,7 @@ from edit import Picture
 from edit import ProfileEditor
 from chat import Chat
 from group import CreateGroupChatPage
+from group import CreateGroupInvitePage
 
 ip = "127.0.0.1"
 port = 12345
@@ -44,13 +45,12 @@ def client_handle():
     profile = Profile(user_info)
     # 绑定编辑个人资料页面
     profile.clicked.connect(click_user_profile_picture)
-    init_friend_list()
-    init_notice_list()
-    init_group_list()
     init_message_list()
     profile.show()
     profile.notice_button.clicked.connect(lambda: init_notice_list())
     profile.message_button.clicked.connect(lambda: init_message_list())
+    profile.friends_button.clicked.connect(lambda: init_friend_list())
+    profile.groups_button.clicked.connect(lambda: init_group_list())
 
     global profile_editor
     profile_editor = ProfileEditor(user_info)
@@ -283,6 +283,8 @@ def init_message_list():
             profile.message_list.addItem(list_item)
             profile.message_list.setItemWidget(list_item, item)
     profile.message_list.itemDoubleClicked.connect(item_double_click)
+    profile.message_list.itemDoubleClicked.disconnect()
+    profile.message_list.itemDoubleClicked.connect(item_double_click)
 
 
 def init_friend_list():
@@ -310,6 +312,17 @@ def init_friend_list():
             if response[0] == "1":
                 item = FriendItem(response[2], response[5])
                 item.user_id = response[1]
+
+                def remove_friend(friend_id):
+                    msg_ = "0006" + ";" + user_info[0] + ";" + friend_id + ";" + "0"
+                    print(msg_)
+                    client.sendall(msg_.encode())
+                    client.recv(4096).decode()
+                    init_friend_list()
+
+                iden = response[1]
+                item.delete_action.triggered.connect(lambda: remove_friend(iden))
+
                 list_item = QListWidgetItem()
                 list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
                 list_item.setData(QtCore.Qt.UserRole, response[1])
@@ -319,6 +332,8 @@ def init_friend_list():
                 profile.friends_list.addItem(list_item)
                 profile.friends_list.setItemWidget(list_item, item)  # 将自定义的FriendItem作为列表项的内容
         # 绑定事件
+        profile.friends_list.itemDoubleClicked.connect(item_double_click)
+        profile.friends_list.itemDoubleClicked.disconnect()
         profile.friends_list.itemDoubleClicked.connect(item_double_click)
 
 
@@ -386,6 +401,18 @@ def init_group_list():
             response = response.split(";")
             if response[0] == "1":
                 item = GroupItem(response[2], response[4])
+
+                def remove_group(group_id_):
+                    msg_ = "0018" + ";" + user_info[0] + ";" + group_id_ + ";" + "1"
+                    print(msg_)
+                    client.sendall(msg_.encode())
+                    client.recv(4096).decode()
+                    init_group_list()
+
+                iden = response[1]
+                item.delete_action.triggered.connect(lambda: remove_group(iden))
+                item.invite_action.triggered.connect(lambda: invite_group(iden))
+
                 list_item = QListWidgetItem()
                 list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
                 list_item.setData(QtCore.Qt.UserRole, response[1])
@@ -397,6 +424,8 @@ def init_group_list():
                 profile.groups_list.setItemWidget(list_item, item)
         # 绑定事件
         profile.groups_list.itemDoubleClicked.connect(group_item_double_click)
+        profile.groups_list.itemDoubleClicked.disconnect()
+        profile.groups_list.itemDoubleClicked.connect(group_item_double_click)
 
 
 def create_group():
@@ -407,8 +436,10 @@ def create_group():
     response = response.split(";")
     if response[0] == "1":
         print(1)
+        print(response)
         response = response[1:]
         users = []
+        print(response)
         for friend_id in response:
             msg = "0003" + ";" + friend_id
             print(msg)
@@ -469,6 +500,59 @@ def create_group():
         print("创建群聊失败")
 
 
+def invite_group(group_id):
+    msg = "0004" + ";" + user_info[0] + ";" + "3"
+    print(msg)
+    client.sendall(msg.encode())
+    response = client.recv(4096).decode()
+    response = response.split(";")
+    if response[0] == "1":
+        response = response[1:]
+        users = []
+        for friend_id in response:
+            msg = "0003" + ";" + friend_id
+            print(msg)
+            client.sendall(msg.encode())
+            friend_info = client.recv(4096).decode()
+            friend_info = friend_info.split(";")
+            user = dict()
+            user["uid"] = friend_info[1]
+            user["username"] = friend_info[2]
+            user["avatar"] = friend_info[5]
+            users.append(user)
+        invite_group_window = CreateGroupInvitePage(users)
+        invite_group_window.cancel_button.clicked.connect(lambda: invite_group_window.close())
+        invite_group_window.create_button.clicked.connect(lambda: send_create_group_msg(invite_group_window))
+        invite_group_window.show()
+
+        def send_create_group_msg(group_window):
+
+            selected_users = [
+                item.data(QtCore.Qt.UserRole) for item in group_window.user_list.findItems("", Qt.MatchContains)
+                if item.checkState() == Qt.Checked
+            ]
+
+            for invite_user in selected_users:
+                send_msg = "0016" + ";" + group_id + ";" + user_info[0] + ";" + invite_user
+                print(send_msg)
+                client.sendall(send_msg.encode())
+                result = client.recv(4096).decode()
+                result.split(";")
+
+            QMessageBox.information(
+                group_window, "成功", f"邀请用户成功！"
+            )
+
+            for index in range(group_window.user_list.count()):
+                group_window.user_list.item(index).setCheckState(Qt.Unchecked)
+
+            group_window.close()
+            init_group_list()
+
+    else:
+        print("创建群聊失败")
+
+
 def group_item_double_click(selected_item):
     user_id = user_info[0]
     group_id = selected_item.data(QtCore.Qt.UserRole)
@@ -496,12 +580,14 @@ def group_item_double_click(selected_item):
             return
         group_member_info.append([response[5], response[1], response[2]])
 
+    print(group_member_info)
+
     chat_window = Chat([user_id, group_id, user_name, group_name], group_member_info)
 
     group_user_info = dict()
     group_user_name_info = dict()
     for user in group_member:
-        msg = "0003" + ";" + user_id
+        msg = "0003" + ";" + user
         print(msg)
         client.sendall(msg.encode())
         response = client.recv(4096).decode()
@@ -515,6 +601,8 @@ def group_item_double_click(selected_item):
     response = client.recv(4096).decode()
     response = response.split(";;")
     print(response)
+    print(group_user_info)
+    print(group_user_name_info)
 
     if response[0] == "1":
         response = response[1:]

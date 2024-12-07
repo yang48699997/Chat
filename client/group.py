@@ -25,9 +25,7 @@ class CreateGroupChatPage(QWidget):
         self.setGeometry(100, 100, 400, 600)
 
         # 模拟用户数据：包含名称和头像路径
-        self.users = users or [
-            {"username": "成弟弟", "avatar": "../static/profile_picture00.jpg", "uid": "11111111"}
-        ]
+        self.users = users or []
 
         # 主布局
         main_layout = QVBoxLayout()
@@ -132,20 +130,102 @@ class CreateGroupChatPage(QWidget):
 
         self.setLayout(main_layout)
 
-    def create_group_chat(self):
-        group_name = "群聊"
-        selected_users = [
-            item.text() for item in self.user_list.findItems("", Qt.MatchContains)
-            if item.checkState() == Qt.Checked
-        ]
 
-        QMessageBox.information(
-            self, "成功", f"群聊 '{group_name}' 创建成功！"
-        )
+class CreateGroupInvitePage(QWidget):
+    def __init__(self, users=None, parent=None):
+        super(CreateGroupInvitePage, self).__init__(parent)
+        self.setWindowTitle("邀请好友")
+        self.setGeometry(100, 100, 400, 600)
 
-        # 清空选择状态
-        for index in range(self.user_list.count()):
-            self.user_list.item(index).setCheckState(Qt.Unchecked)
+        # 模拟用户数据：包含名称和头像路径
+        self.users = users or []
+
+        # 主布局
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+
+        # 分类标题
+        category_label = QLabel("选择好友")
+        category_label.setFont(QFont("Arial", 12, QFont.Bold))
+        category_label.setStyleSheet("color: #ffffff;")
+        main_layout.addWidget(category_label)
+
+        # 用户选择列表
+        self.user_list = QListWidget()
+        self.user_list.setStyleSheet("""
+            QListWidget {
+                background-color: #2c2c2c;
+                border: none;
+                padding: 5px;
+                font-size: 14px;
+                color: #ffffff;
+            }
+            QListWidget::item {
+                padding: 10px;
+                border-radius: 4px;
+            }
+            QListWidget::item:selected {
+                background-color: #3d85c6;
+                color: #ffffff;
+            }
+        """)
+
+        for user in self.users:
+            item = QListWidgetItem(user["username"])
+            item.setIcon(QIcon(QPixmap(user["avatar"]).scaled(50, 50, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
+            item.setCheckState(Qt.Unchecked)
+            item.setData(QtCore.Qt.UserRole, user["uid"])
+            self.user_list.addItem(item)
+        main_layout.addWidget(self.user_list)
+
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+
+        self.create_button = QPushButton("确定")
+        self.create_button.setStyleSheet("""
+            QPushButton {
+                background-color: #5cb85c;
+                color: white;
+                padding: 8px 16px;
+                font-size: 14px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #4cae4c;
+            }
+        """)
+        button_layout.addWidget(self.create_button)
+
+        self.cancel_button = QPushButton("取消")
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #d9534f;
+                color: white;
+                padding: 8px 16px;
+                font-size: 14px;
+                border-radius: 4px;
+            }
+            QPushButton:hover {
+                background-color: #c9302c;
+            }
+        """)
+        button_layout.addWidget(self.cancel_button)
+
+        main_layout.addLayout(button_layout)
+
+        # 设置整体样式
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1e1e1e;
+            }
+            QLabel {
+                color: #ffffff;
+            }
+        """)
+
+        self.setLayout(main_layout)
 
 
 if __name__ == "__main__":
