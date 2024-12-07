@@ -123,7 +123,9 @@ def get_friend(info, cursor):
         FROM friend_info
         WHERE user_id = ?
         ''', (user_id, )).fetchall()
+        print(result)
         for res in result:
+            print(res)
             if str(res[1]) == op and str(res[0]) != user_id:
                 user_friends.append(str(res[0]))
         if op == "1":
@@ -139,8 +141,9 @@ def get_friend(info, cursor):
             if str(res[1]) == op and str(res[0]) != user_id:
                 user_friends.append(str(res[0]))
         friend_list = ";".join(friend for friend in user_friends)
-        print(friend_list)
-        return "1;" + friend_list
+        if len(user_friends) > 0:
+            friend_list = ";" + friend_list
+        return "1" + friend_list
     except Exception as get_friend_e:
         print(f"好友获取失败 : {get_friend_e}")
         return "好友获取失败"
@@ -264,6 +267,11 @@ def send_group_msg(info, cursor):
                INSERT INTO group_messages (sender_id, group_id, content, sent_at)
                VALUES (?, ?, ?, datetime('now'))
            ''', (user_id, group_id, content))
+        cursor.execute('''
+               UPDATE group_members 
+               SET show = 1
+               WHERE group_id = ?
+           ''', (group_id, ))
         print(f"消息已发送并记录到数据库 : {content}")
         return "1;;消息发送成功"
     except Exception as send_group_msg_e:
@@ -543,7 +551,7 @@ def get_message_list(info, cursor):
                     WHERE user_id = ? and show = 1
                     ''', (user_id,)).fetchall()
         for res in result:
-            if str(res[0]) == "3":
+            if str(res[1]) == "3":
                 user_groups.append(str(res[0]))
 
         for fid in user_friends:
@@ -563,11 +571,51 @@ def get_message_list(info, cursor):
                 record = result[-1]
                 f_message = f"0;;{fid};;{friend_name};;{friend_picture};;{record[2]};;{record[3]};;"
             response += f_message
+
+        for gid in user_groups:
+            result = cursor.execute("select * from group_info where id = ?", (gid,)).fetchall()
+            group_name = str(result[0][1])
+            group_picture = str(result[0][3])
+            g_message = f"1;;{gid};;{group_name};;{group_picture};; ;; ;;"
+            result = cursor.execute('''
+                                        SELECT sender_id, content, sent_at
+                                        FROM group_messages
+                                        WHERE group_id = ?
+                                        ORDER BY sent_at ASC
+                                    ''', (gid, )).fetchall()
+            if len(result) > 0:
+                record = result[-1]
+                g_message = f"1;;{gid};;{group_name};;{group_picture};;{record[1]};;{record[2]};;"
+            response += g_message
+
         return response
     except Exception as get_message_list_e:
         print(f"消息列表获取失败 : {get_message_list_e}")
         return "消息列表获取失败"
 
+
+def update_message_list(info, cursor):
+    info = info.split(";")[1:]
+    flag = info[0]
+    user_id = info[1]
+    try:
+        if flag == "0":
+            friend_id = info[2]
+            cursor.execute('''
+                            UPDATE friend_info
+                            SET show = 0
+                            WHERE (user_id = ? AND friend_id = ?) OR (friend_id = ? AND user_id = ?)
+                        ''', (user_id, friend_id, friend_id, user_id))
+        else:
+            group_id = info[2]
+            cursor.execute('''
+                                UPDATE group_members
+                                SET show = 0
+                                WHERE user_id = ? AND group_id = ?
+                            ''', (user_id, group_id))
+    except Exception as update_user_info_e:
+        print(f"更新消息列表失败 : {update_user_info_e}")
+        return "更新消息列表失败"
 
 def handle_client(client_socket):
     try:
@@ -623,6 +671,8 @@ def handle_client(client_socket):
                 result = send_group_msg(info, cursor)
             elif type_ == "0021":
                 result = get_message_list(info, cursor)
+            elif type_ == "0022":
+                result = update_message_list(info, cursor)
             client_socket.sendall(str(result).encode(encoding='utf-8'))
             print(str(result))
             conn.commit()
@@ -751,15 +801,15 @@ def init_db():
         )
     ''')
 
-    result = cursor.execute('''
-    select * from group_info
-    ''').fetchall()
-    print(result)
-
-    result = cursor.execute('''
-    select * from group_members
-    ''').fetchall()
-    print(result)
+    # result = cursor.execute('''
+    # select * from group_info
+    # ''').fetchall()
+    # print(result)
+    #
+    # result = cursor.execute('''
+    # select * from group_members
+    # ''').fetchall()
+    # print(result)
 
     conn.commit()
 
