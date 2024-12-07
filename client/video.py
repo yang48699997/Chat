@@ -281,20 +281,17 @@ class RingingWindow(QWidget):
     def __init__(self, client_):
         super().__init__()
         self.client_ = client_
-        print(client_)
-        print(client_.username)
         self.init_ui()
         self.setup_timer()
-        print("here")
 
     def init_ui(self):
-        self.setWindowTitle("Incoming Call")
+        self.setWindowTitle("未接电话")
         self.resize(300, 150)
 
         # 创建控件
-        self.label = QLabel("Incoming call. Do you want to accept?", self)
-        self.accept_button = QPushButton("Accept", self)
-        self.reject_button = QPushButton("Reject", self)
+        self.label = QLabel(f"有来自 {self.client_.username} 的来电. 是否接听?", self)
+        self.accept_button = QPushButton("接听", self)
+        self.reject_button = QPushButton("拒绝", self)
 
         # 布局管理
         button_layout = QHBoxLayout()
