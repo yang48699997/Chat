@@ -49,8 +49,8 @@ def client_handle():
     init_group_list()
     init_message_list()
     profile.show()
-    profile.notice_button.clicked.connect(lambda: init_notice_list)
-    profile.message_button.clicked.connect(lambda: init_message_list)
+    profile.notice_button.clicked.connect(lambda: init_notice_list())
+    profile.message_button.clicked.connect(lambda: init_message_list())
 
     global profile_editor
     profile_editor = ProfileEditor(user_info)
@@ -120,7 +120,12 @@ def user_register():
     password = register.password.text()
     conform_password = register.confirm_password.text()
     gender = register.gender.currentText()
-    if password != conform_password:
+    if len(email.split("@")) != 2 or min(len(email.split("@")[0]), len(email.split("@")[0])) == 0:
+        register.email.clear()
+        warn_page.warn_label.setText("邮箱不符合规则！")
+        warn_window.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)  # 置顶
+        warn_window.show()
+    elif password != conform_password:
         register.password.clear()
         register.confirm_password.clear()
         warn_page.warn_label.setText("密码与确认密码不一致！")
@@ -256,7 +261,17 @@ def init_message_list():
             profile.message_list.setItemWidget(list_item, item)
 
         else:
+            def remove_item(group_id):
+                msg_ = "0022" + ";" + "1" + ";" + user_info[0] + ";" + group_id
+                print(msg_)
+                client.sendall(msg_.encode())
+                client.recv(4096).decode()
+                init_message_list()
+
             item = MessageItem(name, picture_, message, send_time)
+            iden_ = iden
+            item.delete_action.triggered.connect(lambda: remove_item(iden_))
+
             list_item = QListWidgetItem()
             list_item.setSizeHint(item.sizeHint())  # 设置列表项的大小
 
@@ -526,10 +541,11 @@ def group_item_double_click(selected_item):
 
 
 def item_double_click(selected_item):
-    if selected_item.data(QtCore.Qt.UserRole + 1) is not None:
+    print(2)
+    if selected_item.data(QtCore.Qt.UserRole + 3) is not None:
         group_item_double_click(selected_item)
         return
-
+    print(1)
     user_id = user_info[0]
     friend_id = selected_item.data(QtCore.Qt.UserRole)
     user_name = user_info[1]
