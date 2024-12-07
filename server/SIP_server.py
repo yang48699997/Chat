@@ -23,7 +23,7 @@ def handle_client(client_socket, client_address):
                 username = msg.split()[1]
                 if username not in registered_users:
                     registered_users[username] = client_address
-                    client_list[client_address] = client_socket
+                    client_list[username] = client_socket
                     client_socket.send(f"OK {username} registered".encode("utf-8"))
                 else:
                     client_socket.send(f"ERROR {username} already registered".encode("utf-8"))
@@ -35,9 +35,10 @@ def handle_client(client_socket, client_address):
                 if callee in registered_users:
                     callee_address = registered_users[callee]
                     call_sessions[caller] = callee
+                    call_sessions[callee] = caller
 
                     # 通知被叫方响铃
-                    call_socket = client_list[registered_users[caller]]
+                    call_socket = client_list[callee]
                     call_socket.\
                         send(f"RINGING {callee_address[0]}".encode("utf-8"))
                 else:
@@ -51,12 +52,11 @@ def handle_client(client_socket, client_address):
                 if callee in call_sessions:
                     caller = call_sessions[callee]
                     caller_address = registered_users[caller]
-                    caller_socket = client_list[registered_users[caller]]
+                    caller_socket = client_list[caller]
                     if call_response == "ACCEPT":
                         caller_socket.send(f"CALL ACCEPTED {caller_address[0]}".encode("utf-8"))
                         client_socket.send(f"CALL ACCEPTED {client_address[0]}".encode("utf-8"))
                         print(f"{callee} accepted the call")
-                        # 开始视频通话过程，模拟视频传输（可以改成实际的图像处理代码）
                         start_video_call(caller_socket, client_socket)
                     else:
                         caller_socket.send("CALL REJECTED".encode("utf-8"))
@@ -64,11 +64,23 @@ def handle_client(client_socket, client_address):
                         print(f"{callee} rejected the call")
                         # 清理呼叫会话
                         del call_sessions[callee]
+                        del call_sessions[caller]
                 else:
                     client_socket.send("ERROR No such call session".encode("utf-8"))
 
-            elif msg.startswith("END"):
-                break
+            elif msg.startswith("STOP"):
+                callee = msg.split()[1]
+                if callee in call_sessions:
+                    caller = call_sessions[callee]
+                    caller_socket = client_list[caller]
+                    caller_socket.send("CALL STOPPED".encode("utf-8"))
+                    client_socket.send("CALL STOPPED".encode("utf-8"))
+                    print(f"{callee} rejected the call")
+                    # 清理呼叫会话
+                    stop_video_call(caller_socket, client_socket)
+                    del call_sessions[callee]
+                else:
+                    client_socket.send("ERROR No such call session".encode("utf-8"))
 
     except Exception as e:
         print(f"Error: {e}")
@@ -79,6 +91,11 @@ def handle_client(client_socket, client_address):
 def start_video_call(caller_socket, callee_socket):
     caller_socket.send("VIDEO CALL STARTED".encode("utf-8"))
     callee_socket.send("VIDEO CALL STARTED".encode("utf-8"))
+
+
+def stop_video_call(caller_socket, callee_socket):
+    caller_socket.send("VIDEO CALL STOPPED".encode("utf-8"))
+    callee_socket.send("VIDEO CALL STOPPED".encode("utf-8"))
 
 
 def start_sip_server(host, port):
