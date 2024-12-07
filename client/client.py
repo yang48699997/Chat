@@ -28,6 +28,7 @@ from edit import ProfileEditor
 from chat import Chat
 from group import CreateGroupChatPage
 from group import CreateGroupInvitePage
+from video import *
 
 ip = "127.0.0.1"
 port = 12345
@@ -60,6 +61,9 @@ def client_handle():
     global picture
     picture.table.cellPressed.connect(get_picture)
 
+    global video
+    video = SIPClient(user_info[0], "127.0.0.1", 5060)
+    video.start()
 
 def update_profile():
     global profile
@@ -668,6 +672,8 @@ def item_double_click(selected_item):
 
         chat_window.fill_message(response, user_picture, friend_picture)
 
+        chat_window.video_button.clicked.connect(lambda: video.call(friend_id))
+
         auto_update(chat_window, user_id, friend_id, user_picture, friend_picture)
         chat_window.timer.timeout.\
             connect(lambda: auto_update(chat_window, user_id, friend_id, user_picture, friend_picture))
@@ -933,5 +939,7 @@ if __name__ == "__main__":
 
     warn_page.warn_conBtn.clicked.connect(partial(warn_cancel, ))
     tip_page.conBtn.clicked.connect(partial(tip_cancel, ))
+
+    video = None
 
     sys.exit(app.exec_())

@@ -179,6 +179,15 @@ class Chat(QWidget):
         self.emo_button.setObjectName("emo")
         self.emo_button.setText("表情")
 
+        # 视频通话按钮
+        self.video_button = QtWidgets.QPushButton(self)
+        self.video_button.setGeometry(QtCore.QRect(70, 670, 40, 25))
+        self.video_button.setStyleSheet(emo_css)
+        self.video_button.setObjectName("emo")
+        self.video_button.setText("视频")
+        if self.group_members != []:
+            self.video_button.setVisible(False)
+
         # 现在初始化 Emotion 时传递 Chat 实例
         self.emo = self.Emotion(self)
         self.emo.setVisible(False)
