@@ -384,10 +384,10 @@ class Chat(QWidget):
                 username_format.setForeground(QColor("#0078D4"))  # 设置用户名颜色（蓝色）
                 cursor.setCharFormat(username_format)  # 应用格式
 
-                cursor.insertText(f"{user_name_info[sender]}\n")  # 插入用户名并换行
-
                 cursor.setBlockFormat(block_format)
                 cursor.setCharFormat(content_format)
+
+                cursor.insertText(f"{user_name_info[sender]}\n")  # 插入用户名并换行
 
                 # 使用 insertHtml 来插入消息内容，支持富文本和图片
                 cursor.insertHtml(content)
